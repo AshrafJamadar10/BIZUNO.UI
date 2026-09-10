@@ -9,3 +9,7 @@ export function useCreateSupplier() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (input: Omit<Supplier, "id" | "createdAt" | "outstanding">) => api.createSupplier(input), onSuccess: () => qc.invalidateQueries({ queryKey: supplierKeys.all }) });
 }
+export function useUpdateSupplier() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, input }: { id: string; input: Partial<Omit<Supplier, "id" | "createdAt" | "outstanding">> }) => api.updateSupplier(id, input), onSuccess: () => qc.invalidateQueries({ queryKey: supplierKeys.all }) });
+}
