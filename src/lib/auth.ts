@@ -1,6 +1,6 @@
 export type DemoRole = "PlatformAdmin" | "Owner" | "Manager" | "Salesperson" | "Accountant";
 
-const ROLE_KEY = "biznexus-demo-role";
+const ROLE_KEY = "bizuno-demo-role";
 
 export function getStoredRole(): DemoRole | null {
   if (typeof window === "undefined") return null;

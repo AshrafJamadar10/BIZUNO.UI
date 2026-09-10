@@ -31,16 +31,17 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCreateCustomer, useCustomers, useDeleteCustomer, useUpdateCustomer } from "@/hooks/queries/customers";
 import { formatCurrency, formatDate } from "@/utils/format";
+import { ExportActions } from "@/components/common/ExportActions";
 
 export const Route = createFileRoute("/customers/")({
   head: () => ({
     meta: [
-      { title: "Customers — BizNexus" },
+      { title: "Customers — BizUno" },
       {
         name: "description",
         content: "Manage customer accounts, GST details, credit limits and outstanding balances.",
       },
-      { property: "og:title", content: "Customers — BizNexus" },
+      { property: "og:title", content: "Customers — BizUno" },
       {
         property: "og:description",
         content: "Customer directory with purchase history and receivables.",
@@ -84,6 +85,8 @@ function CustomersPage() {
         description="Every account you sell to, with live outstanding balances."
         crumbs={[{ label: "Home", to: "/" }, { label: "Customers" }]}
         actions={
+          <>
+          <ExportActions filename="customers" headers={["Name", "Contact", "Phone", "Email", "City", "Outstanding", "Status"]} rows={(data?.rows ?? []).map((customer) => [customer.name, customer.contactPerson, customer.phone, customer.email, customer.city, customer.outstanding, customer.status])} />
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -144,6 +147,7 @@ function CustomersPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </>
         }
       />
 

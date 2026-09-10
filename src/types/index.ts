@@ -1,4 +1,4 @@
-/** Domain model for the BizNexus business workspace. */
+/** Domain model for the BizUno business workspace. */
 
 export type ID = string;
 

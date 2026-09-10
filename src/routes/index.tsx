@@ -37,19 +37,19 @@ import { formatCurrency, formatDate, formatNumber, relativeTime } from "@/utils/
 
 export const Route = createFileRoute("/")({
   beforeLoad: () => {
-    if (!window.localStorage.getItem("biznexus-demo-role")) {
+    if (!window.localStorage.getItem("bizuno-demo-role")) {
       throw redirect({ to: "/login" });
     }
   },
   head: () => ({
     meta: [
-      { title: "Dashboard — BizNexus Business Management" },
+      { title: "Dashboard — BizUno Business Management" },
       {
         name: "description",
         content:
-          "Track sales, receivables, inventory health and team activity across your business in one BizNexus dashboard.",
+          "Track sales, receivables, inventory health and team activity across your business in one BizUno dashboard.",
       },
-      { property: "og:title", content: "Dashboard — BizNexus Business Management" },
+      { property: "og:title", content: "Dashboard — BizUno Business Management" },
       {
         property: "og:description",
         content: "Live sales, receivables and inventory insights for your business workspace.",

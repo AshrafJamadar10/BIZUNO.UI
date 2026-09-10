@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useCreateTenant, usePlatformTenants, useSubscriptionPackages, useUpdateTenant } from "@/hooks/queries/platform";
 import { formatDate, formatNumber } from "@/utils/format";
 
-export const Route = createFileRoute("/platform/tenants")({ beforeLoad: () => { if (window.localStorage.getItem("biznexus-demo-role") !== "PlatformAdmin") throw redirect({ to: "/platform/admin/login" }); }, component: TenantsPage });
+export const Route = createFileRoute("/platform/tenants")({ beforeLoad: () => { if (window.localStorage.getItem("bizuno-demo-role") !== "PlatformAdmin") throw redirect({ to: "/platform/admin/login" }); }, component: TenantsPage });
 function TenantsPage() {
   const { data: tenants = [] } = usePlatformTenants(); const { data: packages = [] } = useSubscriptionPackages(); const create = useCreateTenant(); const update = useUpdateTenant(); const [open, setOpen] = useState(false); const [editingId, setEditingId] = useState<string | null>(null); const [form, setForm] = useState({ businessName: "", ownerName: "", email: "", plan: "Growth" });
   const set = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));

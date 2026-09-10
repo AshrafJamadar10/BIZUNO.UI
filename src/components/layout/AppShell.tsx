@@ -66,9 +66,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 function Brand({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-2 px-5 py-5", className)}>
-      <img src="/biznexus-logo.png" alt="BizNexus" className="size-8 rounded-lg object-cover" />
+      <img src="/bizuno-logo.png" alt="BizUno" className="size-8 rounded-lg object-cover" />
       <div className="leading-tight">
-        <p className="font-display text-sm font-semibold text-sidebar-foreground">BizNexus</p>
+        <p className="font-display text-sm font-semibold text-sidebar-foreground">BizUno</p>
         <p className="text-[11px] text-sidebar-foreground/60">Nexus Traders Pvt Ltd</p>
       </div>
     </div>

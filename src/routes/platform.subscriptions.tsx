@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useTenantSubscriptions } from "@/hooks/queries/platform";
 import { formatCurrency, formatDate } from "@/utils/format";
 
-export const Route = createFileRoute("/platform/subscriptions")({ beforeLoad: () => { if (window.localStorage.getItem("biznexus-demo-role") !== "PlatformAdmin") throw redirect({ to: "/platform/admin/login" }); }, component: SubscriptionsPage });
+export const Route = createFileRoute("/platform/subscriptions")({ beforeLoad: () => { if (window.localStorage.getItem("bizuno-demo-role") !== "PlatformAdmin") throw redirect({ to: "/platform/admin/login" }); }, component: SubscriptionsPage });
 
 function SubscriptionsPage() {
   const { data: subscriptions = [] } = useTenantSubscriptions();

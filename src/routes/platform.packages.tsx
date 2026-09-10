@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useSubscriptionPackages, useUpdatePackage } from "@/hooks/queries/platform";
 import { formatCurrency, formatNumber } from "@/utils/format";
 
-export const Route = createFileRoute("/platform/packages")({ beforeLoad: () => { if (window.localStorage.getItem("biznexus-demo-role") !== "PlatformAdmin") throw redirect({ to: "/platform/admin/login" }); }, component: PackagesPage });
+export const Route = createFileRoute("/platform/packages")({ beforeLoad: () => { if (window.localStorage.getItem("bizuno-demo-role") !== "PlatformAdmin") throw redirect({ to: "/platform/admin/login" }); }, component: PackagesPage });
 function PackagesPage() {
   const { data: packages = [] } = useSubscriptionPackages(); const update = useUpdatePackage(); const [editing, setEditing] = useState<(typeof packages)[number] | null>(null); const [form, setForm] = useState({ name: "", monthlyPrice: "", annualPrice: "", userLimit: "" });
   const openEdit = (pkg: (typeof packages)[number]) => { setEditing(pkg); setForm({ name: pkg.name, monthlyPrice: String(pkg.monthlyPrice), annualPrice: String(pkg.annualPrice), userLimit: String(pkg.userLimit) }); };
