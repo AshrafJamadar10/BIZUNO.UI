@@ -16,6 +16,8 @@ import type {
   Payment,
   Product,
   StockMovement,
+  Supplier,
+  PurchaseOrder,
   Warehouse,
 } from "@/types";
 
@@ -508,6 +510,17 @@ export const payments: Payment[] = invoices
     status: "completed" as const,
     note: "Received against invoice",
   }));
+
+export const suppliers: Supplier[] = [
+  { id: "sup-1", name: "TechSource Distributors", contactPerson: "Vikram Shah", phone: "+91 98201 33221", email: "orders@techsource.in", gstin: "27AABCT1234M1Z5", city: "Mumbai", outstanding: 485000, status: "active", createdAt: daysAgo(180) },
+  { id: "sup-2", name: "OfficeWorks India", contactPerson: "Meera Nair", phone: "+91 98450 44110", email: "sales@officeworks.in", gstin: "29AAECO5678R1Z2", city: "Bengaluru", outstanding: 126000, status: "active", createdAt: daysAgo(120) },
+  { id: "sup-3", name: "Network Hub Pvt Ltd", contactPerson: "Sanjay Rao", phone: "+91 98190 22011", email: "accounts@networkhub.in", city: "Pune", outstanding: 0, status: "active", createdAt: daysAgo(90) },
+];
+
+export const purchaseOrders: PurchaseOrder[] = [
+  { id: "po-1", number: "PO-2026-0041", supplierId: "sup-1", supplierName: "TechSource Distributors", issuedAt: daysAgo(4), expectedAt: daysAhead(5), total: 642000, status: "ordered" },
+  { id: "po-2", number: "PO-2026-0040", supplierId: "sup-2", supplierName: "OfficeWorks India", issuedAt: daysAgo(12), expectedAt: daysAgo(2), total: 284000, status: "received" },
+];
 
 export const stockMovements: StockMovement[] = products.slice(0, 10).map((p, i) => ({
   id: `mov-${i + 1}`,

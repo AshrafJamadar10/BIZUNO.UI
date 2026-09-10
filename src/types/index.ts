@@ -151,6 +151,31 @@ export interface Payment {
   note?: string | undefined;
 }
 
+export interface Supplier {
+  id: ID;
+  name: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  gstin?: string | undefined;
+  city: string;
+  outstanding: number;
+  status: EntityStatus;
+  createdAt: string;
+}
+
+export interface PurchaseOrder {
+  id: ID;
+  number: string;
+  supplierId: ID;
+  supplierName: string;
+  issuedAt: string;
+  expectedAt: string;
+  total: number;
+  status: "draft" | "ordered" | "received" | "cancelled";
+  notes?: string | undefined;
+}
+
 /* -------------------------------- Dashboard -------------------------------- */
 
 export interface DashboardMetric {

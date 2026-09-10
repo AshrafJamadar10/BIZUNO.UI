@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Area,
@@ -36,6 +36,11 @@ import type { DateRangeKey } from "@/services/dashboard";
 import { formatCurrency, formatDate, formatNumber, relativeTime } from "@/utils/format";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: () => {
+    if (!window.localStorage.getItem("biznexus-demo-role")) {
+      throw redirect({ to: "/login" });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Dashboard — BizNexus Business Management" },

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BarChart3,
   Boxes,
@@ -10,6 +10,7 @@ import {
   Package,
   Receipt,
   Settings,
+  Truck,
   Sun,
   Users,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import { NotificationsMenu } from "@/components/layout/NotificationsMenu";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
+import { signOut } from "@/lib/auth";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -36,6 +38,7 @@ const NAV = [
   { to: "/inventory", label: "Inventory", icon: Boxes },
   { to: "/sales", label: "Sales & Invoices", icon: Receipt },
   { to: "/payments", label: "Payments", icon: CreditCard },
+  { to: "/suppliers", label: "Suppliers", icon: Truck },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
@@ -76,6 +79,7 @@ function Brand({ className }: { className?: string }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -136,8 +140,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               <DropdownMenuItem asChild>
                 <Link to="/settings">Settings</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/login">Sign out</Link>
+              <DropdownMenuItem
+                onClick={() => {
+                  signOut();
+                  void navigate({ to: "/login" });
+                }}
+              >
+                Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

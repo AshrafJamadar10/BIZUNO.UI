@@ -1,0 +1,20 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowLeft, Mail, Phone } from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
+import { PageHeader } from "@/components/common/PageHeader";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { Card } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useCustomer, useCustomerInvoices, useCustomerPayments } from "@/hooks/queries/customers";
+import { formatCurrency, formatDate } from "@/utils/format";
+
+export const Route = createFileRoute("/customers/$customerId")({ component: CustomerDetailPage });
+
+function CustomerDetailPage() {
+  const { customerId } = Route.useParams();
+  const { data: customer } = useCustomer(customerId);
+  const { data: invoices = [] } = useCustomerInvoices(customerId);
+  const { data: payments = [] } = useCustomerPayments(customerId);
+  if (!customer) return <AppShell><Link to="/customers" className="text-sm text-primary hover:underline">Back to customers</Link></AppShell>;
+  return <AppShell><PageHeader title={customer.name} description={`${customer.city}, ${customer.state} · Customer account`} crumbs={[{ label: "Customers", to: "/customers" }, { label: customer.name }]} actions={<Link to="/customers" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm"><ArrowLeft className="size-4" /> Back</Link>} /><div className="grid gap-4 lg:grid-cols-3"><Card className="p-5"><h2 className="font-semibold">Account profile</h2><div className="mt-4 space-y-3 text-sm"><p className="font-medium">{customer.contactPerson}</p><p className="flex items-center gap-2 text-muted-foreground"><Phone className="size-4" /> {customer.phone}</p><p className="flex items-center gap-2 text-muted-foreground"><Mail className="size-4" /> {customer.email}</p><p className="text-muted-foreground">{customer.address}</p><StatusBadge status={customer.status} /></div></Card><Card className="p-5"><p className="text-xs text-muted-foreground">Total purchases</p><p className="numeric mt-2 text-2xl font-semibold">{formatCurrency(customer.totalPurchases)}</p><p className="mt-1 text-xs text-muted-foreground">Lifetime account value</p></Card><Card className="p-5"><p className="text-xs text-muted-foreground">Outstanding balance</p><p className="numeric mt-2 text-2xl font-semibold">{formatCurrency(customer.outstanding)}</p><p className="mt-1 text-xs text-muted-foreground">Open receivables</p></Card></div><Card className="p-0"><div className="border-b p-4"><h2 className="font-semibold">Invoice history</h2></div><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="text-right">Balance</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{invoices.map((invoice) => <TableRow key={invoice.id}><TableCell><Link to="/sales/$invoiceId" params={{ invoiceId: invoice.id }} className="font-medium hover:underline">{invoice.number}</Link></TableCell><TableCell>{formatDate(invoice.issuedAt)}</TableCell><TableCell className="numeric text-right">{formatCurrency(invoice.total)}</TableCell><TableCell className="numeric text-right">{formatCurrency(invoice.balance)}</TableCell><TableCell><StatusBadge status={invoice.paymentStatus} /></TableCell></TableRow>)}</TableBody></Table></div></Card><Card className="p-0"><div className="border-b p-4"><h2 className="font-semibold">Payment timeline</h2></div><div className="divide-y">{payments.map((payment) => <div key={payment.id} className="flex items-center justify-between gap-3 p-4 text-sm"><div><p className="font-medium">{payment.reference} · {payment.method.toUpperCase()}</p><p className="text-xs text-muted-foreground">{formatDate(payment.receivedAt)} · {payment.invoiceNumber}</p></div><span className="numeric font-semibold">{formatCurrency(payment.amount)}</span></div>)}</div></Card></AppShell>;
+}
