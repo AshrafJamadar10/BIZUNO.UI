@@ -21,6 +21,12 @@ import { Route as SuppliersIndexRouteImport } from './routes/suppliers.index'
 import { Route as CustomersCustomerIdRouteImport } from './routes/customers.$customerId'
 import { Route as SalesInvoiceIdRouteImport } from './routes/sales.$invoiceId'
 import { Route as LoginIndexRouteImport } from './routes/login.index'
+import { Route as PlatformIndexRouteImport } from './routes/platform.index'
+import { Route as PlatformTenantsRouteImport } from './routes/platform.tenants'
+import { Route as PlatformPackagesRouteImport } from './routes/platform.packages'
+import { Route as PlatformSubscriptionsRouteImport } from './routes/platform.subscriptions'
+import { Route as PlatformSettingsRouteImport } from './routes/platform.settings'
+import { Route as PlatformAdminLoginRouteImport } from './routes/platform.admin.login'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -82,6 +88,36 @@ const LoginIndexRoute = LoginIndexRouteImport.update({
   path: '/login/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformIndexRoute = PlatformIndexRouteImport.update({
+  id: '/platform/',
+  path: '/platform/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformTenantsRoute = PlatformTenantsRouteImport.update({
+  id: '/platform/tenants',
+  path: '/platform/tenants',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformPackagesRoute = PlatformPackagesRouteImport.update({
+  id: '/platform/packages',
+  path: '/platform/packages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformSubscriptionsRoute = PlatformSubscriptionsRouteImport.update({
+  id: '/platform/subscriptions',
+  path: '/platform/subscriptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformSettingsRoute = PlatformSettingsRouteImport.update({
+  id: '/platform/settings',
+  path: '/platform/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformAdminLoginRoute = PlatformAdminLoginRouteImport.update({
+  id: '/platform/admin/login',
+  path: '/platform/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,6 +132,12 @@ export interface FileRoutesByFullPath {
   '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/sales/$invoiceId': typeof SalesInvoiceIdRoute
   '/login/': typeof LoginIndexRoute
+  '/platform/': typeof PlatformIndexRoute
+  '/platform/tenants': typeof PlatformTenantsRoute
+  '/platform/packages': typeof PlatformPackagesRoute
+  '/platform/subscriptions': typeof PlatformSubscriptionsRoute
+  '/platform/settings': typeof PlatformSettingsRoute
+  '/platform/admin/login': typeof PlatformAdminLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +152,12 @@ export interface FileRoutesByTo {
   '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/sales/$invoiceId': typeof SalesInvoiceIdRoute
   '/login': typeof LoginIndexRoute
+  '/platform': typeof PlatformIndexRoute
+  '/platform/tenants': typeof PlatformTenantsRoute
+  '/platform/packages': typeof PlatformPackagesRoute
+  '/platform/subscriptions': typeof PlatformSubscriptionsRoute
+  '/platform/settings': typeof PlatformSettingsRoute
+  '/platform/admin/login': typeof PlatformAdminLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,13 +173,19 @@ export interface FileRoutesById {
   '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/sales/$invoiceId': typeof SalesInvoiceIdRoute
   '/login/': typeof LoginIndexRoute
+  '/platform/': typeof PlatformIndexRoute
+  '/platform/tenants': typeof PlatformTenantsRoute
+  '/platform/packages': typeof PlatformPackagesRoute
+  '/platform/subscriptions': typeof PlatformSubscriptionsRoute
+  '/platform/settings': typeof PlatformSettingsRoute
+  '/platform/admin/login': typeof PlatformAdminLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/customers/' | '/products/' | '/inventory/' | '/sales/' | '/payments/' | '/reports/' | '/settings/' | '/suppliers/' | '/customers/$customerId' | '/sales/$invoiceId' | '/login/'
+  fullPaths: '/' | '/customers/' | '/products/' | '/inventory/' | '/sales/' | '/payments/' | '/reports/' | '/settings/' | '/suppliers/' | '/customers/$customerId' | '/sales/$invoiceId' | '/login/' | '/platform/' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/customers' | '/products' | '/inventory' | '/sales' | '/payments' | '/reports' | '/settings' | '/suppliers' | '/customers/$customerId' | '/sales/$invoiceId' | '/login'
-  id: '__root__' | '/' | '/customers/' | '/products/' | '/inventory/' | '/sales/' | '/payments/' | '/reports/' | '/settings/' | '/suppliers/' | '/customers/$customerId' | '/sales/$invoiceId' | '/login/'
+  to: '/' | '/customers' | '/products' | '/inventory' | '/sales' | '/payments' | '/reports' | '/settings' | '/suppliers' | '/customers/$customerId' | '/sales/$invoiceId' | '/login' | '/platform' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
+  id: '__root__' | '/' | '/customers/' | '/products/' | '/inventory/' | '/sales/' | '/payments/' | '/reports/' | '/settings/' | '/suppliers/' | '/customers/$customerId' | '/sales/$invoiceId' | '/login/' | '/platform/' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -147,6 +201,12 @@ export interface RootRouteChildren {
   CustomersCustomerIdRoute: typeof CustomersCustomerIdRoute
   SalesInvoiceIdRoute: typeof SalesInvoiceIdRoute
   LoginIndexRoute: typeof LoginIndexRoute
+  PlatformIndexRoute: typeof PlatformIndexRoute
+  PlatformTenantsRoute: typeof PlatformTenantsRoute
+  PlatformPackagesRoute: typeof PlatformPackagesRoute
+  PlatformSubscriptionsRoute: typeof PlatformSubscriptionsRoute
+  PlatformSettingsRoute: typeof PlatformSettingsRoute
+  PlatformAdminLoginRoute: typeof PlatformAdminLoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -235,6 +295,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform/': {
+      id: '/platform/'
+      path: '/platform'
+      fullPath: '/platform/'
+      preLoaderRoute: typeof PlatformIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/tenants': {
+      id: '/platform/tenants'
+      path: '/platform/tenants'
+      fullPath: '/platform/tenants'
+      preLoaderRoute: typeof PlatformTenantsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/packages': {
+      id: '/platform/packages'
+      path: '/platform/packages'
+      fullPath: '/platform/packages'
+      preLoaderRoute: typeof PlatformPackagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/subscriptions': {
+      id: '/platform/subscriptions'
+      path: '/platform/subscriptions'
+      fullPath: '/platform/subscriptions'
+      preLoaderRoute: typeof PlatformSubscriptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/settings': {
+      id: '/platform/settings'
+      path: '/platform/settings'
+      fullPath: '/platform/settings'
+      preLoaderRoute: typeof PlatformSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/admin/login': {
+      id: '/platform/admin/login'
+      path: '/platform/admin/login'
+      fullPath: '/platform/admin/login'
+      preLoaderRoute: typeof PlatformAdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -251,6 +353,12 @@ const rootRouteChildren: RootRouteChildren = {
   CustomersCustomerIdRoute: CustomersCustomerIdRoute,
   SalesInvoiceIdRoute: SalesInvoiceIdRoute,
   LoginIndexRoute: LoginIndexRoute,
+  PlatformIndexRoute: PlatformIndexRoute,
+  PlatformTenantsRoute: PlatformTenantsRoute,
+  PlatformPackagesRoute: PlatformPackagesRoute,
+  PlatformSubscriptionsRoute: PlatformSubscriptionsRoute,
+  PlatformSettingsRoute: PlatformSettingsRoute,
+  PlatformAdminLoginRoute: PlatformAdminLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
