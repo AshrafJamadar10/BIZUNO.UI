@@ -41,6 +41,7 @@ const NAV = [
   { to: "/suppliers", label: "Suppliers", icon: Truck },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/users", label: "Users & roles", icon: Users },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
