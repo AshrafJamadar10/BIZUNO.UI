@@ -85,8 +85,6 @@ export interface Warehouse {
   id: ID;
   name: string;
   location: string;
-  manager: string;
-  phone: string;
   status: EntityStatus;
 }
 
