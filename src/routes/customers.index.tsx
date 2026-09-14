@@ -66,12 +66,13 @@ const EMPTY = {
 function CustomersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const { data, isLoading } = useCustomers({ search, page, pageSize: 10 });
+  const { data, isLoading } = useCustomers({ search, page, pageSize });
   const create = useCreateCustomer();
   const remove = useDeleteCustomer();
   const update = useUpdateCustomer();
@@ -262,8 +263,13 @@ function CustomersPage() {
           />
         )}
 
-        <div className="flex items-center justify-between border-t border-border p-4 text-sm">
+        <div className="flex flex-col gap-3 border-t border-border p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
           <span className="text-muted-foreground">
+            Rows per page{" "}
+            <select className="mx-2 h-8 rounded-md border bg-background px-2 text-foreground" value={pageSize >= (data?.total ?? 0) && (data?.total ?? 0) > 0 ? "all" : String(pageSize)} onChange={(event) => { setPageSize(event.target.value === "all" ? Math.max(data?.total ?? 0, 1) : Number(event.target.value)); setPage(1); }}>
+              {[5, 10, 20, 50].map((size) => <option key={size} value={size}>{size}</option>)}
+              <option value="all">All</option>
+            </select>
             Page {page} of {totalPages}
           </span>
           <div className="flex gap-2">

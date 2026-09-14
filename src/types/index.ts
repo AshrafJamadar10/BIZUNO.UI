@@ -56,6 +56,8 @@ export interface Category {
   status: EntityStatus;
 }
 
+export type CategoryInput = Omit<Category, "id" | "productCount">;
+
 export interface Product {
   id: ID;
   name: string;
@@ -87,6 +89,8 @@ export interface Warehouse {
   phone: string;
   status: EntityStatus;
 }
+
+export type WarehouseInput = Omit<Warehouse, "id">;
 
 export interface StockMovement {
   id: ID;

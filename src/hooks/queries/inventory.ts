@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/services/inventory";
-import type { ID, ListQuery } from "@/types";
+import type { ID, ListQuery, WarehouseInput } from "@/types";
 
 export const inventoryKeys = {
   all: ["inventory"] as const,
@@ -18,6 +18,40 @@ export const useInventory = (query: ListQuery) =>
 
 export const useWarehouses = () =>
   useQuery({ queryKey: inventoryKeys.warehouses, queryFn: api.listWarehouses });
+
+export function useCreateWarehouse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: WarehouseInput) => api.createWarehouse(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: inventoryKeys.warehouses });
+      qc.invalidateQueries({ queryKey: inventoryKeys.all });
+    },
+  });
+}
+
+export function useUpdateWarehouse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: ID; input: Partial<WarehouseInput> }) =>
+      api.updateWarehouse(id, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: inventoryKeys.warehouses });
+      qc.invalidateQueries({ queryKey: inventoryKeys.all });
+    },
+  });
+}
+
+export function useDeleteWarehouse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: ID) => api.deleteWarehouse(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: inventoryKeys.warehouses });
+      qc.invalidateQueries({ queryKey: inventoryKeys.all });
+    },
+  });
+}
 
 export const useStockMovements = (productId?: ID) =>
   useQuery({

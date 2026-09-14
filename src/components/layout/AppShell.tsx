@@ -10,9 +10,11 @@ import {
   Package,
   Receipt,
   Settings,
+  Tags,
   Truck,
   Sun,
   Users,
+  Warehouse,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -35,7 +37,9 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/products", label: "Products", icon: Package },
+  { to: "/categories", label: "Categories", icon: Tags },
   { to: "/inventory", label: "Inventory", icon: Boxes },
+  { to: "/warehouses", label: "Warehouses", icon: Warehouse },
   { to: "/sales", label: "Sales & Invoices", icon: Receipt },
   { to: "/payments", label: "Payments", icon: CreditCard },
   { to: "/suppliers", label: "Suppliers", icon: Truck },

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/services/products";
-import type { ID, ListQuery, ProductInput } from "@/types";
+import type { CategoryInput, ID, ListQuery, ProductInput } from "@/types";
 
 export const productKeys = {
   all: ["products"] as const,
@@ -21,6 +21,40 @@ export const useProductSales = (id: ID) =>
 
 export const useCategories = () =>
   useQuery({ queryKey: productKeys.categories, queryFn: api.listCategories });
+
+export function useCreateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CategoryInput) => api.createCategory(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: productKeys.categories });
+      qc.invalidateQueries({ queryKey: productKeys.all });
+    },
+  });
+}
+
+export function useUpdateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: ID; input: Partial<CategoryInput> }) =>
+      api.updateCategory(id, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: productKeys.categories });
+      qc.invalidateQueries({ queryKey: productKeys.all });
+    },
+  });
+}
+
+export function useDeleteCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: ID) => api.deleteCategory(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: productKeys.categories });
+      qc.invalidateQueries({ queryKey: productKeys.all });
+    },
+  });
+}
 
 export function useCreateProduct() {
   const qc = useQueryClient();

@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CustomersIndexRouteImport } from './routes/customers.index'
 import { Route as ProductsIndexRouteImport } from './routes/products.index'
+import { Route as CategoriesIndexRouteImport } from './routes/categories.index'
 import { Route as InventoryIndexRouteImport } from './routes/inventory.index'
+import { Route as WarehousesIndexRouteImport } from './routes/warehouses.index'
 import { Route as SalesIndexRouteImport } from './routes/sales.index'
 import { Route as PaymentsIndexRouteImport } from './routes/payments.index'
 import { Route as ReportsIndexRouteImport } from './routes/reports.index'
@@ -44,9 +46,19 @@ const ProductsIndexRoute = ProductsIndexRouteImport.update({
   path: '/products/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
+  id: '/categories/',
+  path: '/categories/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InventoryIndexRoute = InventoryIndexRouteImport.update({
   id: '/inventory/',
   path: '/inventory/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WarehousesIndexRoute = WarehousesIndexRouteImport.update({
+  id: '/warehouses/',
+  path: '/warehouses/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SalesIndexRoute = SalesIndexRouteImport.update({
@@ -129,7 +141,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/customers/': typeof CustomersIndexRoute
   '/products/': typeof ProductsIndexRoute
+  '/categories/': typeof CategoriesIndexRoute
   '/inventory/': typeof InventoryIndexRoute
+  '/warehouses/': typeof WarehousesIndexRoute
   '/sales/': typeof SalesIndexRoute
   '/payments/': typeof PaymentsIndexRoute
   '/reports/': typeof ReportsIndexRoute
@@ -150,7 +164,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/customers': typeof CustomersIndexRoute
   '/products': typeof ProductsIndexRoute
+  '/categories': typeof CategoriesIndexRoute
   '/inventory': typeof InventoryIndexRoute
+  '/warehouses': typeof WarehousesIndexRoute
   '/sales': typeof SalesIndexRoute
   '/payments': typeof PaymentsIndexRoute
   '/reports': typeof ReportsIndexRoute
@@ -172,7 +188,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/customers/': typeof CustomersIndexRoute
   '/products/': typeof ProductsIndexRoute
+  '/categories/': typeof CategoriesIndexRoute
   '/inventory/': typeof InventoryIndexRoute
+  '/warehouses/': typeof WarehousesIndexRoute
   '/sales/': typeof SalesIndexRoute
   '/payments/': typeof PaymentsIndexRoute
   '/reports/': typeof ReportsIndexRoute
@@ -191,17 +209,19 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/customers/' | '/products/' | '/inventory/' | '/sales/' | '/payments/' | '/reports/' | '/settings/' | '/users/' | '/suppliers/' | '/customers/$customerId' | '/sales/$invoiceId' | '/login/' | '/platform/' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
+  fullPaths: '/' | '/customers/' | '/products/' | '/categories/' | '/inventory/' | '/warehouses/' | '/sales/' | '/payments/' | '/reports/' | '/settings/' | '/users/' | '/suppliers/' | '/customers/$customerId' | '/sales/$invoiceId' | '/login/' | '/platform/' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/customers' | '/products' | '/inventory' | '/sales' | '/payments' | '/reports' | '/settings' | '/users' | '/suppliers' | '/customers/$customerId' | '/sales/$invoiceId' | '/login' | '/platform' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
-  id: '__root__' | '/' | '/customers/' | '/products/' | '/inventory/' | '/sales/' | '/payments/' | '/reports/' | '/settings/' | '/users/' | '/suppliers/' | '/customers/$customerId' | '/sales/$invoiceId' | '/login/' | '/platform/' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
+  to: '/' | '/customers' | '/products' | '/categories' | '/inventory' | '/warehouses' | '/sales' | '/payments' | '/reports' | '/settings' | '/users' | '/suppliers' | '/customers/$customerId' | '/sales/$invoiceId' | '/login' | '/platform' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
+  id: '__root__' | '/' | '/customers/' | '/products/' | '/categories/' | '/inventory/' | '/warehouses/' | '/sales/' | '/payments/' | '/reports/' | '/settings/' | '/users/' | '/suppliers/' | '/customers/$customerId' | '/sales/$invoiceId' | '/login/' | '/platform/' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CustomersIndexRoute: typeof CustomersIndexRoute
   ProductsIndexRoute: typeof ProductsIndexRoute
+  CategoriesIndexRoute: typeof CategoriesIndexRoute
   InventoryIndexRoute: typeof InventoryIndexRoute
+  WarehousesIndexRoute: typeof WarehousesIndexRoute
   SalesIndexRoute: typeof SalesIndexRoute
   PaymentsIndexRoute: typeof PaymentsIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
@@ -242,11 +262,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/categories/': {
+      id: '/categories/'
+      path: '/categories'
+      fullPath: '/categories/'
+      preLoaderRoute: typeof CategoriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/inventory/': {
       id: '/inventory/'
       path: '/inventory'
       fullPath: '/inventory/'
       preLoaderRoute: typeof InventoryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/warehouses/': {
+      id: '/warehouses/'
+      path: '/warehouses'
+      fullPath: '/warehouses/'
+      preLoaderRoute: typeof WarehousesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sales/': {
@@ -361,7 +395,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CustomersIndexRoute: CustomersIndexRoute,
   ProductsIndexRoute: ProductsIndexRoute,
+  CategoriesIndexRoute: CategoriesIndexRoute,
   InventoryIndexRoute: InventoryIndexRoute,
+  WarehousesIndexRoute: WarehousesIndexRoute,
   SalesIndexRoute: SalesIndexRoute,
   PaymentsIndexRoute: PaymentsIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
