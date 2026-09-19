@@ -1,4 +1,4 @@
-import { ArrowRight, BarChart3, Check, Package, Receipt, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, BarChart3, Check, ChevronDown, Menu, Package, Receipt, ShieldCheck, Sparkles } from "lucide-react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,19 +8,24 @@ export const Route = createFileRoute("/landing")({ component: LandingPage });
 function LandingPage() {
   return (
     <div className="min-h-screen overflow-hidden bg-[#08111f] text-white">
-      <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8">
-        <Link to="/landing" className="flex items-center gap-2.5">
-          <img src="/bizuno-logo.png" alt="BizUno" className="size-9 rounded-xl object-cover ring-1 ring-white/20" />
-          <span className="font-display text-lg font-bold tracking-tight">BizUno</span>
-        </Link>
-        <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
-          <a href="#features" className="transition hover:text-white">Features</a>
-          <a href="#how-it-works" className="transition hover:text-white">How it works</a>
-          <a href="#pricing" className="transition hover:text-white">Pricing</a>
-        </nav>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" className="text-slate-200 hover:bg-white/10 hover:text-white"><Link to="/login">Sign in</Link></Button>
-          <Button asChild className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"><Link to="/register">Get started <ArrowRight className="size-4" /></Link></Button>
+      <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#08111f]/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-6 px-5 lg:px-8">
+          <Link to="/landing" className="flex shrink-0 items-center gap-3">
+            <img src="/bizuno-logo.png" alt="BizUno" className="size-10 rounded-xl object-cover ring-1 ring-white/20" />
+            <span className="font-display text-xl font-bold tracking-tight">BizUno</span>
+          </Link>
+          <nav className="hidden flex-1 items-center justify-center gap-8 text-[15px] font-medium lg:flex">
+            <a href="#how-it-works" className="text-slate-300 transition-colors hover:text-white">How it works</a>
+            <a href="#pricing" className="text-slate-300 transition-colors hover:text-white">Pricing</a>
+            <a href="#features" className="text-slate-300 transition-colors hover:text-white">Features</a>
+            <a href="#product-tour" className="text-violet-300 transition-colors hover:text-violet-200">Product tour</a>
+            <a href="#resources" className="flex items-center gap-1 text-violet-300 transition-colors hover:text-violet-200">Resources <ChevronDown className="size-3.5" /></a>
+          </nav>
+          <div className="hidden shrink-0 items-center gap-4 sm:flex">
+            <Button asChild variant="ghost" className="text-[15px] font-semibold text-white hover:bg-white/10 hover:text-white"><Link to="/login">Login</Link></Button>
+            <Button asChild variant="outline" className="h-11 rounded-xl border-white/20 bg-white/[0.03] px-6 text-[15px] font-semibold text-white transition-all hover:-translate-y-0.5 hover:border-violet-300/60 hover:bg-violet-400/10 hover:text-white"><Link to="/register">Get started <ArrowRight className="size-4" /></Link></Button>
+          </div>
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 sm:hidden" aria-label="Open navigation"><Menu className="size-5" /></Button>
         </div>
       </header>
 
@@ -49,11 +54,11 @@ function LandingPage() {
 
         <section id="features" className="border-y border-white/10 bg-white/[0.03] px-5 py-20 lg:px-8"><div className="mx-auto max-w-7xl"><div className="max-w-2xl"><p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">Everything in one place</p><h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">Less chasing. More doing.</h2><p className="mt-4 text-slate-400">Replace scattered spreadsheets and disconnected tools with one source of truth for your business.</p></div><div className="mt-10 grid gap-4 md:grid-cols-3"><Feature icon={BarChart3} title="Know your numbers" text="See revenue, receivables and performance trends at a glance." /><Feature icon={Package} title="Stay in control" text="Manage products, stock, warehouses and purchasing without guesswork." /><Feature icon={ShieldCheck} title="Grow with confidence" text="Give your team the right access and keep every workflow organised." /></div></div></section>
         <section id="how-it-works" className="mx-auto max-w-7xl px-5 py-20 lg:px-8"><div className="grid gap-8 md:grid-cols-3">{["Create your workspace", "Bring your operations together", "Make better decisions"].map((title, index) => <div key={title} className="flex gap-4"><span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-300 font-semibold text-slate-950">{index + 1}</span><div><h3 className="font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{["Register your business in under a minute.", "Connect products, customers, sales and inventory.", "Use live insights to move your business forward."][index]}</p></div></div>)}</div></section>
-        <ProductShowcase />
+        <div id="product-tour"><ProductShowcase /></div>
         <Pricing />
         <Testimonials />
       </main>
-      <footer className="border-t border-white/10 px-5 py-8 text-sm text-slate-500 lg:px-8"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 sm:flex-row"><span>© 2026 BizUno. Business, made clearer.</span><span>Simple tools for ambitious businesses.</span></div></footer>
+      <footer id="resources" className="border-t border-white/10 px-5 py-8 text-sm text-slate-500 lg:px-8"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 sm:flex-row"><span>© 2026 BizUno. Business, made clearer.</span><span>Simple tools for ambitious businesses.</span></div></footer>
     </div>
   );
 }
