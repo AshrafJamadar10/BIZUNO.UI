@@ -1,6 +1,8 @@
 export type DemoRole = "PlatformAdmin" | "Owner" | "Manager" | "Salesperson" | "Accountant";
 
 const ROLE_KEY = "bizuno-demo-role";
+const TOKEN_KEY = "bizuno-auth-token";
+const USER_KEY = "bizuno-auth-user";
 
 export function getStoredRole(): DemoRole | null {
   if (typeof window === "undefined") return null;
@@ -10,12 +12,32 @@ export function getStoredRole(): DemoRole | null {
     : null;
 }
 
-export function signIn(role: DemoRole): void {
+export function getStoredToken(): string {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(TOKEN_KEY) ?? "";
+}
+
+export function getStoredUser(): Record<string, unknown> | null {
+  if (typeof window === "undefined") return null;
+  const rawUser = window.localStorage.getItem(USER_KEY);
+  if (!rawUser) return null;
+  try {
+    return JSON.parse(rawUser) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+export function signIn(role: DemoRole, token?: string, user?: Record<string, unknown>): void {
   window.localStorage.setItem(ROLE_KEY, role);
+  if (token) window.localStorage.setItem(TOKEN_KEY, token);
+  if (user) window.localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 export function signOut(): void {
   window.localStorage.removeItem(ROLE_KEY);
+  window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem(USER_KEY);
 }
 
 export function landingPath(role: DemoRole): "/" | "/inventory" | "/sales" | "/reports" | "/platform" {

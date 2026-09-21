@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { requestWithMeta } from "@/services/apis/client";
 
 export const Route = createFileRoute("/register/")({ component: RegisterPage });
 
@@ -36,7 +37,31 @@ function RegisterPage() {
     setErrors(next);
     return Object.keys(next).length === 0;
   };
-  const submit = (event: FormEvent) => { event.preventDefault(); if (!validate()) return; toast.success("Business registration submitted"); void navigate({ to: "/login" }); };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!validate()) return;
+
+    try {
+      const body = new FormData();
+      body.append("businessName", form.businessName);
+      body.append("firstName", form.firstName);
+      body.append("lastName", form.lastName);
+      body.append("email", form.email);
+      body.append("phone", form.phone.replace(/\s+/g, ""));
+      body.append("password", form.password);
+      if (form.logo) body.append("logo", form.logo);
+
+      const result = await requestWithMeta<unknown>("/bizuno/auth/register/business", {
+        method: "POST",
+        body,
+      });
+      toast.success(result.message || "Business registration submitted");
+      void navigate({ to: "/login" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to create business account";
+      toast.error(message);
+    }
+  };
   const logoSelected = (event: ChangeEvent<HTMLInputElement>) => set("logo", event.target.files?.[0] ?? null);
 
   return <div className="min-h-screen bg-muted/30 px-4 py-8"><div className="mx-auto max-w-5xl"><Link to="/landing" className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Back to home</Link><div className="grid overflow-hidden rounded-3xl border bg-card shadow-xl lg:grid-cols-[0.8fr_1.2fr]"><div className="hidden bg-[#08111f] p-10 text-white lg:block"><div className="flex items-center gap-2"><img src="/bizuno-logo.png" alt="BizUno" className="size-9 rounded-xl object-cover" /><span className="font-display text-lg font-bold">BizUno</span></div><div className="mt-24"><p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">Start clearly</p><h1 className="mt-4 font-display text-4xl font-bold leading-tight">Your business workspace starts here.</h1><p className="mt-5 leading-7 text-slate-300">Set up your business once, then keep sales, inventory and your team moving together.</p><ul className="mt-8 space-y-4 text-sm text-slate-300"><li className="flex gap-3"><Check className="size-5 text-emerald-300" /> One workspace for every operation</li><li className="flex gap-3"><Check className="size-5 text-emerald-300" /> Role-based access for your team</li><li className="flex gap-3"><Check className="size-5 text-emerald-300" /> Ready to scale with your business</li></ul></div></div><div className="p-6 sm:p-10"><div className="mb-8 flex items-center gap-2 lg:hidden"><img src="/bizuno-logo.png" alt="BizUno" className="size-9 rounded-lg object-cover" /><span className="font-display font-semibold">BizUno</span></div><h2 className="font-display text-2xl font-bold">Create your workspace</h2><p className="mt-2 text-sm text-muted-foreground">Register your business to get started.</p><form className="mt-7 space-y-5" onSubmit={submit} noValidate><div><Label htmlFor="businessName">Business name</Label><Input id="businessName" value={form.businessName} onChange={(e) => set("businessName", e.target.value)} className="mt-1.5" placeholder="Nexus Traders" />{errors.businessName && <ErrorText text={errors.businessName} />}</div><div className="grid gap-4 sm:grid-cols-2"><Field id="firstName" label="First name" value={form.firstName} error={errors.firstName} onChange={(value) => set("firstName", value)} /><Field id="lastName" label="Last name" value={form.lastName} error={errors.lastName} onChange={(value) => set("lastName", value)} /></div><div className="grid gap-4 sm:grid-cols-2"><Field id="email" label="Email" type="email" value={form.email} error={errors.email} onChange={(value) => set("email", value)} /><Field id="phone" label="Phone number" value={form.phone} error={errors.phone} onChange={(value) => set("phone", value)} /></div><div><Label htmlFor="password">Password</Label><div className="relative mt-1.5"><Input id="password" type={showPassword ? "text" : "password"} value={form.password} onChange={(e) => set("password", e.target.value)} className="pr-10" placeholder="At least 8 characters" /><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div>{errors.password && <ErrorText text={errors.password} />}</div><div><Label htmlFor="logo">Business logo <span className="text-muted-foreground">(optional)</span></Label><label htmlFor="logo" className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 text-sm text-muted-foreground hover:bg-muted/50"><Upload className="size-4" /><span>{form.logo ? form.logo.name : "Upload PNG, JPG or SVG"}</span></label><input id="logo" type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={logoSelected} className="sr-only" /></div><Button type="submit" className="h-11 w-full bg-emerald-600 hover:bg-emerald-700">Create business account</Button></form><p className="mt-6 text-center text-sm text-muted-foreground">Already have an account? <Link to="/login" className="font-medium text-primary hover:underline">Sign in</Link></p></div></div></div></div>;
