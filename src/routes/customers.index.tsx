@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -36,12 +36,12 @@ import { ExportActions } from "@/components/common/ExportActions";
 export const Route = createFileRoute("/customers/")({
   head: () => ({
     meta: [
-      { title: "Customers — BizUno" },
+      { title: "Customers â€” BizUno" },
       {
         name: "description",
         content: "Manage customer accounts, GST details, credit limits and outstanding balances.",
       },
-      { property: "og:title", content: "Customers — BizUno" },
+      { property: "og:title", content: "Customers â€” BizUno" },
       {
         property: "og:description",
         content: "Customer directory with purchase history and receivables.",
@@ -58,9 +58,7 @@ const EMPTY = {
   email: "",
   gstin: "",
   city: "",
-  state: "",
   address: "",
-  status: "active" as "active" | "inactive",
 };
 
 function CustomersPage() {
@@ -107,7 +105,6 @@ function CustomersPage() {
                     ["email", "Email"],
                     ["gstin", "GSTIN"],
                     ["city", "City"],
-                    ["state", "State"],
                     ["address", "Address"],
                   ] as const
                 ).map(([key, label]) => (
@@ -213,7 +210,7 @@ function CustomersPage() {
                       {formatCurrency(c.outstanding)}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {c.lastPurchaseAt ? formatDate(c.lastPurchaseAt) : "—"}
+                      {c.lastPurchaseAt ? formatDate(c.lastPurchaseAt) : "â€”"}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={c.status} />
@@ -232,9 +229,8 @@ function CustomersPage() {
                             email: c.email,
                             gstin: c.gstin ?? "",
                             city: c.city,
-                            state: c.state,
+
                             address: c.address,
-                            status: c.status,
                           });
                           setOpen(true);
                         }}
@@ -313,3 +309,5 @@ function CustomersPage() {
     </AppShell>
   );
 }
+
+

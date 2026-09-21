@@ -56,16 +56,16 @@ function UsersPage() {
   const [attendance, setAttendance] = useState(initialAttendance);
   const [attendanceDialog, setAttendanceDialog] = useState(false);
   const [editingAttendance, setEditingAttendance] = useState<Attendance | null>(null);
-  const [attendanceForm, setAttendanceForm] = useState({ staffId: "staff-1", date: new Date().toISOString().slice(0, 10), status: "Present" as Attendance["status"], checkIn: "", checkOut: "", note: "" });
+  const [attendanceForm, setAttendanceForm] = useState({ staffId: "", date: "", status: "" as Attendance["status"], checkIn: "", checkOut: "", note: "" });
   const [userDialog, setUserDialog] = useState(false);
   const [roleDialog, setRoleDialog] = useState(false);
   const [staffDialog, setStaffDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
-  const [userForm, setUserForm] = useState({ name: "", email: "", role: "Salesperson" });
+  const [userForm, setUserForm] = useState({ name: "", email: "", role: "" });
   const [roleForm, setRoleForm] = useState({ name: "", description: "", permissions: {} as PermissionMap });
-  const [staffForm, setStaffForm] = useState({ name: "", email: "", phone: "", department: "", role: "Salesperson" });
+  const [staffForm, setStaffForm] = useState({ name: "", email: "", phone: "", department: "", role: "" });
 
   const saveStaff = () => {
     if (!staffForm.name || !staffForm.email || !staffForm.role) return;

@@ -26,6 +26,22 @@ export function getStoredUser(): Record<string, unknown> | null {
   } catch {
     return null;
   }
+
+}
+
+export function getStoredBusinessCode(): string {
+  const user = getStoredUser();
+  const userCode = user?.businessCode;
+  if (typeof userCode === "string" && userCode) return userCode;
+  const token = getStoredToken();
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return "";
+    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as { businessCode?: unknown };
+    return typeof decoded.businessCode === "string" ? decoded.businessCode : "";
+  } catch {
+    return "";
+  }
 }
 
 export function signIn(role: DemoRole, token?: string, user?: Record<string, unknown>): void {

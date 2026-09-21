@@ -1,98 +1,24 @@
-import { categories, invoices, nextId, products } from "@/services/apis/db";
-import { matches, paginate, request, sortRows } from "@/services/apis/client";
+import { request } from "@/services/apis/client";
+import { getStoredBusinessCode } from "@/lib/auth";
 import type { Category, CategoryInput, ID, ListQuery, Paginated, Product, ProductInput } from "@/types";
 
-export function listProducts(query: ListQuery = {}): Promise<Paginated<Product>> {
-  return request(() => {
-    let rows = products.filter((p) =>
-      matches([p.name, p.sku, p.barcode, p.categoryName], query.search),
-    );
-    if (query.category && query.category !== "all")
-      rows = rows.filter((p) => p.categoryId === query.category);
-    if (query.status && query.status !== "all") rows = rows.filter((p) => p.status === query.status);
-    rows = sortRows(rows, query.sortBy ?? "name", query.sortDir ?? "asc");
-    return paginate(rows, query);
-  });
-}
+type BackendPage<T> = { content: T[]; page: number; size: number; totalElements: number };
+type CategoryDTO = { categoryId: string; name: string; description?: string };
+type ProductDTO = { productId: string; categoryId?: string; name: string; sku?: string; barcode?: string; description?: string; unit?: string; purchasePrice?: number; sellingPrice?: number; taxRate?: number; minStock?: number; status?: string };
+const base = (resource: string) => `/bizuno/business/${encodeURIComponent(getStoredBusinessCode())}/${resource}`;
+const ensureCode = () => { if (!getStoredBusinessCode()) throw new Error("Business session is missing. Please sign in again."); };
+const mapCategory = (item: CategoryDTO): Category => ({ id: item.categoryId, name: item.name, description: item.description, parentId: null, productCount: 0, status: "active" });
+const mapProduct = (item: ProductDTO): Product => ({ id: item.productId, name: item.name, sku: item.sku ?? "", barcode: item.barcode ?? "", categoryId: item.categoryId ?? "", categoryName: "", unit: item.unit ?? "", purchasePrice: Number(item.purchasePrice ?? 0), sellingPrice: Number(item.sellingPrice ?? 0), taxRate: Number(item.taxRate ?? 0), stock: 0, minStock: Number(item.minStock ?? 0), warehouseId: "", status: item.status?.toLowerCase() === "inactive" ? "inactive" : item.status?.toLowerCase() === "discontinued" ? "discontinued" : "active", description: item.description, createdAt: "" });
+const params = (query: ListQuery = {}) => new URLSearchParams({ page: String(Math.max(0, (query.page ?? 1) - 1)), size: String(query.pageSize ?? 10), sortBy: query.sortBy ?? "name", sortDirection: query.sortDir === "desc" ? "desc" : "ASC" });
+const productBody = (input: Partial<ProductInput>, includeWarehouse = false) => ({ ...(includeWarehouse && input.warehouseId ? { warehouseId: input.warehouseId } : {}), categoryId: input.categoryId || undefined, name: input.name, barcode: input.barcode || undefined, description: input.description || undefined, unit: input.unit || undefined, purchasePrice: input.purchasePrice, sellingPrice: input.sellingPrice, taxRate: input.taxRate, minStock: input.minStock, status: input.status?.toUpperCase() });
 
-export function getProduct(id: ID): Promise<Product | undefined> {
-  return request(() => products.find((p) => p.id === id));
-}
-
-export function getProductSales(id: ID) {
-  return request(() =>
-    invoices
-      .filter((inv) => inv.items.some((i) => i.productId === id))
-      .map((inv) => ({
-        invoiceNumber: inv.number,
-        customerName: inv.customerName,
-        issuedAt: inv.issuedAt,
-        quantity: inv.items.filter((i) => i.productId === id).reduce((s, i) => s + i.quantity, 0),
-        amount: inv.items.filter((i) => i.productId === id).reduce((s, i) => s + i.total, 0),
-      })),
-  );
-}
-
-export function listCategories(): Promise<Category[]> {
-  return request(() => categories);
-}
-
-export function createCategory(input: CategoryInput): Promise<Category> {
-  return request(() => {
-    const category: Category = { ...input, id: nextId("cat"), productCount: 0 };
-    categories.unshift(category);
-    return category;
-  });
-}
-
-export function updateCategory(id: ID, input: Partial<CategoryInput>): Promise<Category> {
-  return request(() => {
-    const category = categories.find((item) => item.id === id);
-    if (!category) throw new Error("Category not found");
-    Object.assign(category, input);
-    return category;
-  });
-}
-
-export function deleteCategory(id: ID): Promise<void> {
-  return request(() => {
-    if (products.some((product) => product.categoryId === id)) {
-      throw new Error("Cannot delete a category that has products");
-    }
-    const index = categories.findIndex((category) => category.id === id);
-    if (index >= 0) categories.splice(index, 1);
-  });
-}
-
-export function createProduct(input: ProductInput): Promise<Product> {
-  return request(() => {
-    const product: Product = {
-      ...input,
-      id: nextId("prd"),
-      categoryName: categories.find((c) => c.id === input.categoryId)?.name ?? "Uncategorised",
-      createdAt: new Date().toISOString(),
-    };
-    products.unshift(product);
-    return product;
-  });
-}
-
-export function updateProduct(id: ID, input: Partial<ProductInput>): Promise<Product> {
-  return request(() => {
-    const existing = products.find((p) => p.id === id);
-    if (!existing) throw new Error("Product not found");
-    Object.assign(existing, input);
-    if (input.categoryId) {
-      existing.categoryName =
-        categories.find((c) => c.id === input.categoryId)?.name ?? existing.categoryName;
-    }
-    return existing;
-  });
-}
-
-export function deleteProduct(id: ID): Promise<void> {
-  return request(() => {
-    const idx = products.findIndex((p) => p.id === id);
-    if (idx >= 0) products.splice(idx, 1);
-  });
-}
+export async function listProducts(query: ListQuery = {}): Promise<Paginated<Product>> { ensureCode(); const [result, categories] = await Promise.all([request<BackendPage<ProductDTO>>(`${base("product")}?${params(query)}`), listCategories()]); const categoryNames = new Map(categories.map((category) => [category.id, category.name])); const rows = result.content.map((item) => ({ ...mapProduct(item), categoryName: categoryNames.get(item.categoryId ?? "") ?? "" })); const search = query.search?.toLowerCase().trim(); return { rows: search ? rows.filter((item) => [item.name, item.sku, item.barcode, item.categoryName].some((value) => value.toLowerCase().includes(search))) : rows, total: result.totalElements, page: result.page + 1, pageSize: result.size }; }
+export async function getProduct(id: ID): Promise<Product | undefined> { ensureCode(); return mapProduct(await request<ProductDTO>(`${base("product")}/${id}`)); }
+export async function getProductSales(_id: ID) { return []; }
+export async function listCategories(): Promise<Category[]> { ensureCode(); const result = await request<BackendPage<CategoryDTO>>(`${base("category")}?${params({ page: 1, pageSize: 100 })}`); return result.content.map(mapCategory); }
+export async function createCategory(input: CategoryInput): Promise<Category> { ensureCode(); return mapCategory(await request<CategoryDTO>(base("category"), { method: "POST", body: JSON.stringify({ name: input.name, description: input.description || undefined }) })); }
+export async function updateCategory(id: ID, input: Partial<CategoryInput>): Promise<Category> { ensureCode(); return mapCategory(await request<CategoryDTO>(`${base("category")}/${id}`, { method: "PUT", body: JSON.stringify({ name: input.name, description: input.description || undefined }) })); }
+export async function deleteCategory(id: ID): Promise<void> { ensureCode(); await request<unknown>(`${base("category")}/${id}`, { method: "DELETE" }); }
+export async function createProduct(input: ProductInput): Promise<Product> { ensureCode(); return mapProduct(await request<ProductDTO>(base("product"), { method: "POST", body: JSON.stringify(productBody(input, true)) })); }
+export async function updateProduct(id: ID, input: Partial<ProductInput>): Promise<Product> { ensureCode(); return mapProduct(await request<ProductDTO>(`${base("product")}/${id}`, { method: "PUT", body: JSON.stringify(productBody(input)) })); }
+export async function deleteProduct(id: ID): Promise<void> { ensureCode(); await request<unknown>(`${base("product")}/${id}`, { method: "DELETE" }); }

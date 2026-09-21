@@ -24,7 +24,7 @@ type PackageForm = {
   name: string;
   description: string;
   basePrice: string;
-  billingPeriod: PackageInput["billingPeriod"];
+  billingPeriod: PackageInput["billingPeriod"] | "";
   packageDays: string;
   trialDays: string;
   setupFee: string;
@@ -34,11 +34,11 @@ type PackageForm = {
 const EMPTY_FORM: PackageForm = {
   name: "",
   description: "",
-  basePrice: "0",
-  billingPeriod: "MONTHLY",
-  packageDays: "30",
-  trialDays: "14",
-  setupFee: "0",
+  basePrice: "",
+  billingPeriod: "",
+  packageDays: "",
+  trialDays: "",
+  setupFee: "",
   recommended: false,
 };
 
@@ -56,6 +56,7 @@ function formFromPackage(pkg: SubscriptionPackage): PackageForm {
 }
 
 function toInput(form: PackageForm): PackageInput {
+  if (!form.billingPeriod) throw new Error("Billing period is required");
   return {
     name: form.name,
     description: form.description,
@@ -141,14 +142,14 @@ function PackagesPage() {
             <div className="sm:col-span-2"><Label>Name</Label><Input className="mt-1.5" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div className="sm:col-span-2"><Label>Description</Label><Input className="mt-1.5" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
             <div><Label>Base price</Label><Input className="mt-1.5" type="number" min="0" value={form.basePrice} onChange={(e) => setForm({ ...form, basePrice: e.target.value })} /></div>
-            <div><Label>Billing period</Label><select className="mt-1.5 h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.billingPeriod} onChange={(e) => setForm({ ...form, billingPeriod: e.target.value as PackageInput["billingPeriod"] })}>{["MONTHLY", "QUARTERLY", "YEARLY", "LIFETIME", "ONE_TIME"].map((period) => <option key={period}>{period}</option>)}</select></div>
+            <div><Label>Billing period</Label><select className="mt-1.5 h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.billingPeriod} onChange={(e) => setForm({ ...form, billingPeriod: e.target.value as PackageForm["billingPeriod"] })}><option value="">Select a billing period</option>{["MONTHLY", "QUARTERLY", "YEARLY", "LIFETIME", "ONE_TIME"].map((period) => <option key={period}>{period}</option>)}</select></div>
             <div><Label>Package days</Label><Input className="mt-1.5" type="number" min="0" value={form.packageDays} onChange={(e) => setForm({ ...form, packageDays: e.target.value })} /></div>
             <div><Label>Trial days</Label><Input className="mt-1.5" type="number" min="0" value={form.trialDays} onChange={(e) => setForm({ ...form, trialDays: e.target.value })} /></div>
             <div><Label>Setup fee</Label><Input className="mt-1.5" type="number" min="0" value={form.setupFee} onChange={(e) => setForm({ ...form, setupFee: e.target.value })} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={close}>Cancel</Button>
-            <Button disabled={isPending || !form.name.trim() || !form.description.trim()} onClick={save}>{isPending ? "Saving..." : editing ? "Save changes" : "Create package"}</Button>
+            <Button disabled={isPending || !form.name.trim() || !form.description.trim() || !form.billingPeriod || !form.basePrice || !form.packageDays || !form.trialDays || !form.setupFee} onClick={save}>{isPending ? "Saving..." : editing ? "Save changes" : "Create package"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

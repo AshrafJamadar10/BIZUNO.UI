@@ -37,7 +37,11 @@ import { formatCurrency, formatDate, formatNumber, relativeTime } from "@/utils/
 
 export const Route = createFileRoute("/")({
   beforeLoad: () => {
-    if (!window.localStorage.getItem("bizuno-demo-role")) {
+    const role = window.localStorage.getItem("bizuno-demo-role");
+    if (role === "PlatformAdmin") {
+      throw redirect({ to: "/platform" });
+    }
+    if (!role) {
       throw redirect({ to: "/landing" });
     }
   },

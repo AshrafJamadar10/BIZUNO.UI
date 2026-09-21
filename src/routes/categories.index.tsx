@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -16,7 +16,7 @@ import { Pagination } from "@/components/common/Pagination";
 
 export const Route = createFileRoute("/categories/")({ component: CategoriesPage });
 
-const EMPTY = { name: "", parentId: null as string | null, status: "active" as "active" | "inactive" };
+const EMPTY = { name: "", description: "", parentId: null as string | null };
 
 function CategoriesPage() {
   const [page, setPage] = useState(1); const [pageSize, setPageSize] = useState(10); const [open, setOpen] = useState(false);
@@ -33,12 +33,13 @@ function CategoriesPage() {
     <PageHeader title="Product categories" description="Organise products into clear, reusable catalogue groups." crumbs={[{ label: "Home", to: "/" }, { label: "Product categories" }]} actions={<Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button><Plus className="size-4" /> New category</Button></DialogTrigger>
       <DialogContent><DialogHeader><DialogTitle>{editingId ? "Edit category" : "Add category"}</DialogTitle></DialogHeader>
-        <div className="space-y-3"><div><Label htmlFor="category-name">Name</Label><Input id="category-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
-          <div><Label>Status</Label><select className="mt-1.5 h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as "active" | "inactive" })}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+        <div className="space-y-3"><div><Label htmlFor="category-name">Name</Label><Input id="category-name" maxLength={100} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
+          <div><Label htmlFor="category-description">Description</Label><Input id="category-description" maxLength={500} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-1.5" /></div>
         </div>
         <DialogFooter><Button variant="outline" onClick={close}>Cancel</Button><Button disabled={!form.name.trim() || create.isPending || update.isPending} onClick={() => { const options = { onSuccess: () => { toast.success(editingId ? "Category updated" : "Category added"); close(); }, onError: (error: Error) => toast.error(error.message) }; if (editingId) update.mutate({ id: editingId, input: form }, options); else create.mutate(form, options); }}>{editingId ? "Save changes" : "Save category"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>} />
-    <Card className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Category</TableHead><TableHead>Parent category</TableHead><TableHead>Products</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{visibleCategories.map((category) => <TableRow key={category.id}><TableCell className="font-medium">{category.name}</TableCell><TableCell className="text-sm text-muted-foreground">{categories.find((parent) => parent.id === category.parentId)?.name ?? "—"}</TableCell><TableCell>{category.productCount}</TableCell><TableCell><StatusBadge status={category.status} /></TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" aria-label={`Edit ${category.name}`} onClick={() => { setEditingId(category.id); setForm({ name: category.name, parentId: category.parentId, status: category.status }); setOpen(true); }}><Pencil className="size-4 text-muted-foreground" /></Button><Button variant="ghost" size="icon" aria-label={`Delete ${category.name}`} onClick={() => remove.mutate(category.id, { onSuccess: () => toast.success("Category deleted"), onError: (error: Error) => toast.error(error.message) })}><Trash2 className="size-4 text-muted-foreground" /></Button></TableCell></TableRow>)}</TableBody></Table>    </div><Pagination page={page} pageSize={pageSize} total={categories.length} onPageChange={setPage} onPageSizeChange={setPageSize} /></Card>
+    <Card className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Category</TableHead><TableHead>Parent category</TableHead>    <TableHead>Description</TableHead><TableHead>Products</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{visibleCategories.map((category) => <TableRow key={category.id}><TableCell className="font-medium">{category.name}</TableCell><TableCell className="text-sm text-muted-foreground">{categories.find((parent) => parent.id === category.parentId)?.name ?? "â€”"}</TableCell><TableCell>{category.productCount}</TableCell><TableCell><StatusBadge status={category.status} /></TableCell><TableCell className="text-right">    <Button variant="ghost" size="icon" aria-label={`Edit ${category.name}`} onClick={() => { setEditingId(category.id); setForm({ name: category.name, description: category.description ?? "", parentId: category.parentId }); setOpen(true); }}><Pencil className="size-4 text-muted-foreground" /></Button><Button variant="ghost" size="icon" aria-label={`Delete ${category.name}`} onClick={() => remove.mutate(category.id, { onSuccess: () => toast.success("Category deleted"), onError: (error: Error) => toast.error(error.message) })}><Trash2 className="size-4 text-muted-foreground" /></Button></TableCell></TableRow>)}</TableBody></Table>    </div><Pagination page={page} pageSize={pageSize} total={categories.length} onPageChange={setPage} onPageSizeChange={setPageSize} /></Card>
   </AppShell>;
 }
+

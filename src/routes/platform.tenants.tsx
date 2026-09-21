@@ -34,11 +34,11 @@ function TenantsPage() {
     firstName: "",
     lastName: "",
     email: "",
-    phone: "9999999999",
-    password: "Bizuno@123",
+    phone: "",
+    password: "",
     logo: null as File | null,
     ownerName: "",
-    plan: "Growth",
+    plan: "",
   });
 
   const set = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
@@ -48,17 +48,17 @@ function TenantsPage() {
     firstName: "",
     lastName: "",
     email: "",
-    phone: "9999999999",
-    password: "Bizuno@123",
+    phone: "",
+    password: "",
     logo: null,
     ownerName: "",
-    plan: "Growth",
+    plan: "",
   });
 
   return (
     <PlatformShell>
       <PageHeader
-        title="Tenants & businesses"
+        title="Businesses"
         description="Create and manage isolated business workspaces."
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
@@ -69,7 +69,7 @@ function TenantsPage() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{editingId ? "Edit tenant workspace" : "Create tenant workspace"}</DialogTitle>
+                <DialogTitle>{editingId ? "Edit business" : "Create business"}</DialogTitle>
               </DialogHeader>
 
               <div className="space-y-3">
@@ -81,7 +81,8 @@ function TenantsPage() {
                   <div>
                     <Label>Subscription package</Label>
                     <select className="mt-1.5 h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.plan} onChange={(e) => set("plan", e.target.value)}>
-                      {packages.map((pkg) => <option key={pkg.id}>{pkg.name}</option>)}
+                      <option value="">Select a package</option>
+                      {packages.map((pkg) => <option key={pkg.id} value={pkg.name}>{pkg.name}</option>)}
                     </select>
                   </div>
                 </div>
@@ -123,7 +124,7 @@ function TenantsPage() {
                   Cancel
                 </Button>
                 <Button
-                  disabled={!form.businessName || !form.firstName || !form.lastName || !form.email || !form.phone || !form.password || create.isPending || update.isPending}
+                  disabled={!form.businessName || !form.firstName || !form.lastName || !form.email || !form.phone || !form.password || !form.plan || create.isPending || update.isPending}
                   onClick={() => {
                     const payload = { ...form, ownerName: `${form.firstName} ${form.lastName}`.trim() };
                     const onSuccess = (response: unknown) => {
@@ -142,7 +143,7 @@ function TenantsPage() {
                     else create.mutate(payload, { onSuccess, onError });
                   }}
                 >
-                  {create.isPending || update.isPending ? "Saving..." : editingId ? "Save changes" : "Create tenant"}
+                  {create.isPending || update.isPending ? "Saving..." : editingId ? "Save changes" : "Create business"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -194,8 +195,8 @@ function TenantsPage() {
                           firstName: parts[0] ?? "",
                           lastName: parts.slice(1).join(" ") || "Owner",
                           email: tenant.email,
-                          phone: "9999999999",
-                          password: "Bizuno@123",
+                          phone: "",
+                          password: "",
                           logo: null,
                           ownerName: tenant.ownerName,
                           plan: tenant.plan,
