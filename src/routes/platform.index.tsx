@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { usePlatformTenants, useSubscriptionPackages } from "@/hooks/queries/platform";
 import { formatCurrency, formatNumber } from "@/utils/format";
 
-export const Route = createFileRoute("/platform/")({ beforeLoad: () => { if (window.localStorage.getItem("biznexus-demo-role") !== "PlatformAdmin") throw redirect({ to: "/platform/admin/login" }); }, component: PlatformDashboard });
+export const Route = createFileRoute("/platform/")({ beforeLoad: () => { if (window.localStorage.getItem("bizuno-demo-role") !== "PlatformAdmin") throw redirect({ to: "/platform/admin/login" }); }, component: PlatformDashboard });
 function PlatformDashboard() {
   const { data: tenants = [] } = usePlatformTenants(); const { data: packages = [] } = useSubscriptionPackages();
   const active = tenants.filter((tenant) => tenant.status === "active").length; const mrr = packages.reduce((sum, pkg) => sum + pkg.monthlyPrice * pkg.activeTenants, 0);

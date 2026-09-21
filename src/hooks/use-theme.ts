@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-const STORAGE_KEY = "biznexus-theme";
+const STORAGE_KEY = "bizuno-theme";
 export type Theme = "light" | "dark";
 
 export function useTheme() {

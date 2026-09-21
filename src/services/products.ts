@@ -1,6 +1,6 @@
 import { categories, invoices, nextId, products } from "@/services/apis/db";
 import { matches, paginate, request, sortRows } from "@/services/apis/client";
-import type { Category, ID, ListQuery, Paginated, Product, ProductInput } from "@/types";
+import type { Category, CategoryInput, ID, ListQuery, Paginated, Product, ProductInput } from "@/types";
 
 export function listProducts(query: ListQuery = {}): Promise<Paginated<Product>> {
   return request(() => {
@@ -35,6 +35,33 @@ export function getProductSales(id: ID) {
 
 export function listCategories(): Promise<Category[]> {
   return request(() => categories);
+}
+
+export function createCategory(input: CategoryInput): Promise<Category> {
+  return request(() => {
+    const category: Category = { ...input, id: nextId("cat"), productCount: 0 };
+    categories.unshift(category);
+    return category;
+  });
+}
+
+export function updateCategory(id: ID, input: Partial<CategoryInput>): Promise<Category> {
+  return request(() => {
+    const category = categories.find((item) => item.id === id);
+    if (!category) throw new Error("Category not found");
+    Object.assign(category, input);
+    return category;
+  });
+}
+
+export function deleteCategory(id: ID): Promise<void> {
+  return request(() => {
+    if (products.some((product) => product.categoryId === id)) {
+      throw new Error("Cannot delete a category that has products");
+    }
+    const index = categories.findIndex((category) => category.id === id);
+    if (index >= 0) categories.splice(index, 1);
+  });
 }
 
 export function createProduct(input: ProductInput): Promise<Product> {

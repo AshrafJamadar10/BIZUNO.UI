@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus, Trash2, Users } from "lucide-react";
+import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -29,18 +29,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCreateCustomer, useCustomers, useDeleteCustomer } from "@/hooks/queries/customers";
+import { useCreateCustomer, useCustomers, useDeleteCustomer, useUpdateCustomer } from "@/hooks/queries/customers";
 import { formatCurrency, formatDate } from "@/utils/format";
+import { ExportActions } from "@/components/common/ExportActions";
 
 export const Route = createFileRoute("/customers/")({
   head: () => ({
     meta: [
-      { title: "Customers — BizNexus" },
+      { title: "Customers — BizUno" },
       {
         name: "description",
         content: "Manage customer accounts, GST details, credit limits and outstanding balances.",
       },
-      { property: "og:title", content: "Customers — BizNexus" },
+      { property: "og:title", content: "Customers — BizUno" },
       {
         property: "og:description",
         content: "Customer directory with purchase history and receivables.",
@@ -59,19 +60,22 @@ const EMPTY = {
   city: "",
   state: "",
   address: "",
-  status: "active" as const,
+  status: "active" as "active" | "inactive",
 };
 
 function CustomersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const { data, isLoading } = useCustomers({ search, page, pageSize: 10 });
+  const { data, isLoading } = useCustomers({ search, page, pageSize });
   const create = useCreateCustomer();
   const remove = useDeleteCustomer();
+  const update = useUpdateCustomer();
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
@@ -82,6 +86,8 @@ function CustomersPage() {
         description="Every account you sell to, with live outstanding balances."
         crumbs={[{ label: "Home", to: "/" }, { label: "Customers" }]}
         actions={
+          <>
+          <ExportActions filename="customers" headers={["Name", "Contact", "Phone", "Email", "City", "Outstanding", "Status"]} rows={(data?.rows ?? []).map((customer) => [customer.name, customer.contactPerson, customer.phone, customer.email, customer.city, customer.outstanding, customer.status])} />
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -90,7 +96,7 @@ function CustomersPage() {
             </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>Add customer</DialogTitle>
+                <DialogTitle>{editingId ? "Edit customer" : "Add customer"}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-3 sm:grid-cols-2">
                 {(
@@ -117,26 +123,32 @@ function CustomersPage() {
                 ))}
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setOpen(false)}>
+                <Button variant="outline" onClick={() => { setOpen(false); setEditingId(null); }}>
                   Cancel
                 </Button>
                 <Button
                   disabled={!form.name || create.isPending}
                   onClick={() => {
-                    create.mutate(form, {
+                    const onSuccess = () => {
+                      toast.success(editingId ? "Customer updated" : "Customer added");
+                      setOpen(false);
+                      setEditingId(null);
+                      setForm({ ...EMPTY });
+                    };
+                    if (editingId) update.mutate({ id: editingId, input: form }, { onSuccess });
+                    else create.mutate(form, {
                       onSuccess: () => {
-                        toast.success("Customer added");
-                        setOpen(false);
-                        setForm({ ...EMPTY });
+                        onSuccess();
                       },
                     });
                   }}
                 >
-                  Save customer
+                  {editingId ? "Save changes" : "Save customer"}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </>
         }
       />
 
@@ -210,6 +222,28 @@ function CustomersPage() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        aria-label={`Edit ${c.name}`}
+                        onClick={() => {
+                          setEditingId(c.id);
+                          setForm({
+                            name: c.name,
+                            contactPerson: c.contactPerson,
+                            phone: c.phone,
+                            email: c.email,
+                            gstin: c.gstin ?? "",
+                            city: c.city,
+                            state: c.state,
+                            address: c.address,
+                            status: c.status,
+                          });
+                          setOpen(true);
+                        }}
+                      >
+                        <Pencil className="size-4 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         aria-label={`Delete ${c.name}`}
                         onClick={() => setDeleteId(c.id)}
                       >
@@ -229,8 +263,13 @@ function CustomersPage() {
           />
         )}
 
-        <div className="flex items-center justify-between border-t border-border p-4 text-sm">
+        <div className="flex flex-col gap-3 border-t border-border p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
           <span className="text-muted-foreground">
+            Rows per page{" "}
+            <select className="mx-2 h-8 rounded-md border bg-background px-2 text-foreground" value={pageSize >= (data?.total ?? 0) && (data?.total ?? 0) > 0 ? "all" : String(pageSize)} onChange={(event) => { setPageSize(event.target.value === "all" ? Math.max(data?.total ?? 0, 1) : Number(event.target.value)); setPage(1); }}>
+              {[5, 10, 20, 50].map((size) => <option key={size} value={size}>{size}</option>)}
+              <option value="all">All</option>
+            </select>
             Page {page} of {totalPages}
           </span>
           <div className="flex gap-2">

@@ -14,6 +14,15 @@ export function createSupplier(input: Omit<Supplier, "id" | "createdAt" | "outst
   });
 }
 
+export function updateSupplier(id: ID, input: Partial<Omit<Supplier, "id" | "createdAt" | "outstanding">>): Promise<Supplier> {
+  return request(() => {
+    const supplier = suppliers.find((item) => item.id === id);
+    if (!supplier) throw new Error("Supplier not found");
+    Object.assign(supplier, input);
+    return supplier;
+  });
+}
+
 export function listPurchaseOrders(query: ListQuery = {}): Promise<Paginated<PurchaseOrder>> {
   return request(() => paginate(sortRows(purchaseOrders.filter((order) => matches([order.number, order.supplierName, order.status], query.search)), query.sortBy ?? "issuedAt", query.sortDir ?? "desc"), query));
 }

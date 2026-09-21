@@ -66,3 +66,21 @@ export function createTenant(input: Pick<Tenant, "businessName" | "ownerName" | 
     return tenant;
   });
 }
+
+export function updateTenant(id: string, input: Partial<Pick<Tenant, "businessName" | "ownerName" | "email" | "plan" | "status">>): Promise<Tenant> {
+  return request(() => {
+    const tenant = tenants.find((item) => item.id === id);
+    if (!tenant) throw new Error("Tenant not found");
+    Object.assign(tenant, input);
+    return tenant;
+  });
+}
+
+export function updatePackage(id: string, input: Partial<Omit<SubscriptionPackage, "id">>): Promise<SubscriptionPackage> {
+  return request(() => {
+    const subscriptionPackage = packages.find((item) => item.id === id);
+    if (!subscriptionPackage) throw new Error("Package not found");
+    Object.assign(subscriptionPackage, input);
+    return subscriptionPackage;
+  });
+}

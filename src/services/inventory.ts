@@ -1,6 +1,6 @@
 import { products, stockMovements, warehouses } from "@/services/apis/db";
 import { matches, paginate, request, sortRows } from "@/services/apis/client";
-import type { ID, ListQuery, Paginated, Product, StockStatus, Warehouse } from "@/types";
+import type { ID, ListQuery, Paginated, Product, StockStatus, Warehouse, WarehouseInput } from "@/types";
 
 export function stockStatusOf(p: Pick<Product, "stock" | "minStock">): StockStatus {
   if (p.stock <= 0) return "out_of_stock";
@@ -40,6 +40,33 @@ export function listInventory(query: ListQuery = {}): Promise<Paginated<Product>
 
 export function listWarehouses(): Promise<Warehouse[]> {
   return request(() => warehouses);
+}
+
+export function createWarehouse(input: WarehouseInput): Promise<Warehouse> {
+  return request(() => {
+    const warehouse: Warehouse = { ...input, id: `wh-${Date.now()}` };
+    warehouses.unshift(warehouse);
+    return warehouse;
+  });
+}
+
+export function updateWarehouse(id: ID, input: Partial<WarehouseInput>): Promise<Warehouse> {
+  return request(() => {
+    const warehouse = warehouses.find((item) => item.id === id);
+    if (!warehouse) throw new Error("Warehouse not found");
+    Object.assign(warehouse, input);
+    return warehouse;
+  });
+}
+
+export function deleteWarehouse(id: ID): Promise<void> {
+  return request(() => {
+    if (products.some((product) => product.warehouseId === id)) {
+      throw new Error("Cannot delete a warehouse that has stock assigned to it");
+    }
+    const index = warehouses.findIndex((warehouse) => warehouse.id === id);
+    if (index >= 0) warehouses.splice(index, 1);
+  });
 }
 
 export function listStockMovements(productId?: ID) {

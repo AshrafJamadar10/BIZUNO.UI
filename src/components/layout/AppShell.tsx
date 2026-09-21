@@ -10,9 +10,12 @@ import {
   Package,
   Receipt,
   Settings,
+  ShoppingCart,
+  Tags,
   Truck,
   Sun,
   Users,
+  Warehouse,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -35,12 +38,16 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/products", label: "Products", icon: Package },
+  { to: "/categories", label: "Categories", icon: Tags },
   { to: "/inventory", label: "Inventory", icon: Boxes },
+  { to: "/warehouses", label: "Warehouses", icon: Warehouse },
   { to: "/sales", label: "Sales & Invoices", icon: Receipt },
   { to: "/payments", label: "Payments", icon: CreditCard },
   { to: "/suppliers", label: "Suppliers", icon: Truck },
+  { to: "/purchases", label: "Purchases", icon: ShoppingCart },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/users", label: "Users & roles", icon: Users },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
@@ -66,9 +73,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 function Brand({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-2 px-5 py-5", className)}>
-      <img src="/biznexus-logo.png" alt="BizNexus" className="size-8 rounded-lg object-cover" />
+      <img src="/bizuno-logo.png" alt="BizUno" className="size-8 rounded-lg object-cover" />
       <div className="leading-tight">
-        <p className="font-display text-sm font-semibold text-sidebar-foreground">BizNexus</p>
+        <p className="font-display text-sm font-semibold text-sidebar-foreground">BizUno</p>
         <p className="text-[11px] text-sidebar-foreground/60">Nexus Traders Pvt Ltd</p>
       </div>
     </div>
@@ -150,7 +157,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </DropdownMenu>
         </header>
 
-        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 md:px-6 md:py-8">
+        <main className="page-enter mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 md:px-6 md:py-8">
           {children}
         </main>
       </div>

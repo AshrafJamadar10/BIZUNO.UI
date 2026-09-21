@@ -13,7 +13,7 @@ export default function App() {
       }}
     >
       <section style={{ maxWidth: "42rem", textAlign: "center" }}>
-        <h1 style={{ margin: 0, fontSize: "clamp(2rem, 6vw, 4rem)" }}>BIZUNO.UI</h1>
+        <h1 style={{ margin: 0, fontSize: "clamp(2rem, 6vw, 4rem)" }}>BizUno</h1>
         <p style={{ margin: "1rem 0 0", fontSize: "1.125rem", lineHeight: 1.6, color: "#475569" }}>
           Your React application is running.
         </p>

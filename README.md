@@ -1,4 +1,4 @@
-# BIZUNO.UI
+# BizUno
 
 A minimal, runnable React + TypeScript + Vite scaffold, mirroring the folder
 structure of the original project, with a working "Hello World" demo.

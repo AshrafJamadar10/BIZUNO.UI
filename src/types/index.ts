@@ -1,4 +1,4 @@
-/** Domain model for the BizNexus business workspace. */
+/** Domain model for the BizUno business workspace. */
 
 export type ID = string;
 
@@ -56,6 +56,8 @@ export interface Category {
   status: EntityStatus;
 }
 
+export type CategoryInput = Omit<Category, "id" | "productCount">;
+
 export interface Product {
   id: ID;
   name: string;
@@ -83,10 +85,10 @@ export interface Warehouse {
   id: ID;
   name: string;
   location: string;
-  manager: string;
-  phone: string;
   status: EntityStatus;
 }
+
+export type WarehouseInput = Omit<Warehouse, "id">;
 
 export interface StockMovement {
   id: ID;

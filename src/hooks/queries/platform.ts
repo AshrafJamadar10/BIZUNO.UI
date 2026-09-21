@@ -9,3 +9,11 @@ export function useCreateTenant() {
   const queryClient = useQueryClient();
   return useMutation({ mutationFn: api.createTenant, onSuccess: () => queryClient.invalidateQueries({ queryKey: platformKeys.all }) });
 }
+export function useUpdateTenant() {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: ({ id, input }: { id: string; input: Partial<Pick<api.Tenant, "businessName" | "ownerName" | "email" | "plan" | "status">> }) => api.updateTenant(id, input), onSuccess: () => queryClient.invalidateQueries({ queryKey: platformKeys.all }) });
+}
+export function useUpdatePackage() {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: ({ id, input }: { id: string; input: Partial<Omit<api.SubscriptionPackage, "id">> }) => api.updatePackage(id, input), onSuccess: () => queryClient.invalidateQueries({ queryKey: platformKeys.all }) });
+}

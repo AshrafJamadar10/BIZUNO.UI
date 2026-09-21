@@ -1,4 +1,4 @@
-/** Formatting helpers shared across every BizNexus module. */
+/** Formatting helpers shared across every BizUno module. */
 
 export const CURRENCY = "INR";
 
