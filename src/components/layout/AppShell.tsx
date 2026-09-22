@@ -13,6 +13,8 @@ import {
   ShoppingCart,
   Tags,
   Truck,
+  Globe,
+  LayoutTemplate,
   Sun,
   Users,
   Warehouse,
@@ -46,6 +48,8 @@ const NAV = [
   { to: "/suppliers", label: "Suppliers", icon: Truck },
   { to: "/purchases", label: "Purchases", icon: ShoppingCart },
   { to: "/reports", label: "Reports", icon: BarChart3 },
+    { to: "/forms", label: "Form Handling", icon: LayoutTemplate },     // ← NEW
+  { to: "/website", label: "Website", icon: Globe },                  // ← NEW
   { to: "/settings", label: "Settings", icon: Settings },
   { to: "/users", label: "Users & roles", icon: Users },
 ] as const;

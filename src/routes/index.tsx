@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { useState } from "react";
 import {
   Area,
@@ -275,3 +275,9 @@ function DashboardPage() {
     </AppShell>
   );
 }
+// import { createFileRoute } from '@tanstack/react-router';
+// import Home from '@/utils/Home';
+
+// export const Route = createFileRoute('/')({
+//   component: Home,
+// });

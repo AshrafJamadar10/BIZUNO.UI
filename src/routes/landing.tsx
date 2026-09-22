@@ -9,7 +9,7 @@ function LandingPage() {
   return (
     <div className="min-h-screen overflow-hidden bg-[#08111f] text-white">
       <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#08111f]/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-6 px-5 lg:px-8">
+        <div className="mx-auto flex h-19 max-w-7xl items-center justify-between gap-6 px-5 lg:px-8">
           <Link to="/landing" className="flex shrink-0 items-center gap-3">
             <img src="/bizuno-logo.png" alt="BizUno" className="size-10 rounded-xl object-cover ring-1 ring-white/20" />
             <span className="font-display text-xl font-bold tracking-tight">BizUno</span>
@@ -23,7 +23,7 @@ function LandingPage() {
           </nav>
           <div className="hidden shrink-0 items-center gap-4 sm:flex">
             <Button asChild variant="ghost" className="text-[15px] font-semibold text-white hover:bg-white/10 hover:text-white"><Link to="/login">Login</Link></Button>
-            <Button asChild variant="outline" className="h-11 rounded-xl border-white/20 bg-white/[0.03] px-6 text-[15px] font-semibold text-white transition-all hover:-translate-y-0.5 hover:border-violet-300/60 hover:bg-violet-400/10 hover:text-white"><Link to="/register">Get started <ArrowRight className="size-4" /></Link></Button>
+            <Button asChild variant="outline" className="h-11 rounded-xl border-white/20 bg-white/3 px-6 text-[15px] font-semibold text-white transition-all hover:-translate-y-0.5 hover:border-violet-300/60 hover:bg-violet-400/10 hover:text-white"><Link to="/register">Get started <ArrowRight className="size-4" /></Link></Button>
           </div>
           <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 sm:hidden" aria-label="Open navigation"><Menu className="size-5" /></Button>
         </div>
@@ -31,7 +31,7 @@ function LandingPage() {
 
       <main>
         <section className="relative mx-auto grid max-w-7xl gap-14 px-5 pb-24 pt-16 lg:grid-cols-[1fr_0.9fr] lg:items-center lg:px-8 lg:pb-32 lg:pt-24">
-          <div className="absolute -left-40 top-0 size-[30rem] rounded-full bg-emerald-500/10 blur-3xl" />
+          <div className="absolute -left-40 top-0 size-120 rounded-full bg-emerald-500/10 blur-3xl" />
           <div className="relative">
             <div className="rise-in mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-medium text-emerald-200"><Sparkles className="size-3.5" /> Business operations, simplified</div>
             <h1 className="rise-in max-w-3xl font-display text-4xl font-bold leading-[1.08] tracking-tight [animation-delay:100ms] sm:text-6xl lg:text-7xl">Run your business with <span className="text-emerald-300">clarity.</span></h1>
@@ -45,14 +45,14 @@ function LandingPage() {
               <div className="rounded-xl border border-white/10 bg-[#101d2e] p-5">
                 <div className="flex items-center justify-between"><div><p className="text-xs text-slate-400">Workspace overview</p><p className="mt-1 text-xl font-semibold">Good morning, Ashraf</p></div><div className="size-2 rounded-full bg-emerald-400" /></div>
                 <div className="mt-6 grid grid-cols-2 gap-3"><PreviewMetric label="Revenue" value="₹12.84L" change="+18.4%" /><PreviewMetric label="Outstanding" value="₹2.16L" change="-6.2%" /></div>
-                <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4"><div className="mb-4 flex items-center justify-between text-xs text-slate-400"><span>Revenue trend</span><span className="text-emerald-300">This month</span></div><div className="flex h-28 items-end gap-2">{[35, 48, 42, 68, 57, 79, 92, 74, 100, 86, 108, 96].map((height, index) => <div key={index} className="flex-1 rounded-t bg-gradient-to-t from-emerald-500/30 to-emerald-300" style={{ height: `${height}%` }} />)}</div></div>
+                <div className="mt-4 rounded-xl border border-white/10 bg-white/3 p-4"><div className="mb-4 flex items-center justify-between text-xs text-slate-400"><span>Revenue trend</span><span className="text-emerald-300">This month</span></div><div className="flex h-28 items-end gap-2">{[35, 48, 42, 68, 57, 79, 92, 74, 100, 86, 108, 96].map((height, index) => <div key={index} className="flex-1 rounded-t bg-linear-to-t from-emerald-500/30 to-emerald-300" style={{ height: `${height}%` }} />)}</div></div>
                 <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs"><PreviewPill icon={Receipt} label="Sales" value="128" /><PreviewPill icon={Package} label="Products" value="246" /><PreviewPill icon={BarChart3} label="Reports" value="24" /></div>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="features" className="border-y border-white/10 bg-white/[0.03] px-5 py-20 lg:px-8"><div className="mx-auto max-w-7xl"><div className="max-w-2xl"><p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">Everything in one place</p><h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">Less chasing. More doing.</h2><p className="mt-4 text-slate-400">Replace scattered spreadsheets and disconnected tools with one source of truth for your business.</p></div><div className="mt-10 grid gap-4 md:grid-cols-3"><Feature icon={BarChart3} title="Know your numbers" text="See revenue, receivables and performance trends at a glance." /><Feature icon={Package} title="Stay in control" text="Manage products, stock, warehouses and purchasing without guesswork." /><Feature icon={ShieldCheck} title="Grow with confidence" text="Give your team the right access and keep every workflow organised." /></div></div></section>
+        <section id="features" className="border-y border-white/10 bg-white/3 px-5 py-20 lg:px-8"><div className="mx-auto max-w-7xl"><div className="max-w-2xl"><p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">Everything in one place</p><h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">Less chasing. More doing.</h2><p className="mt-4 text-slate-400">Replace scattered spreadsheets and disconnected tools with one source of truth for your business.</p></div><div className="mt-10 grid gap-4 md:grid-cols-3"><Feature icon={BarChart3} title="Know your numbers" text="See revenue, receivables and performance trends at a glance." /><Feature icon={Package} title="Stay in control" text="Manage products, stock, warehouses and purchasing without guesswork." /><Feature icon={ShieldCheck} title="Grow with confidence" text="Give your team the right access and keep every workflow organised." /></div></div></section>
         <section id="how-it-works" className="mx-auto max-w-7xl px-5 py-20 lg:px-8"><div className="grid gap-8 md:grid-cols-3">{["Create your workspace", "Bring your operations together", "Make better decisions"].map((title, index) => <div key={title} className="flex gap-4"><span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-300 font-semibold text-slate-950">{index + 1}</span><div><h3 className="font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{["Register your business in under a minute.", "Connect products, customers, sales and inventory.", "Use live insights to move your business forward."][index]}</p></div></div>)}</div></section>
         <div id="product-tour"><ProductShowcase /></div>
         <Pricing />
@@ -64,15 +64,15 @@ function LandingPage() {
 }
 
 function PreviewMetric({ label, value, change }: { label: string; value: string; change: string }) {
-  return <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3"><p className="text-xs text-slate-400">{label}</p><p className="mt-2 text-lg font-semibold">{value}</p><p className="mt-1 text-xs text-emerald-300">{change}</p></div>;
+  return <div className="rounded-xl border border-white/10 bg-white/3 p-3"><p className="text-xs text-slate-400">{label}</p><p className="mt-2 text-lg font-semibold">{value}</p><p className="mt-1 text-xs text-emerald-300">{change}</p></div>;
 }
 
 function PreviewPill({ icon: Icon, label, value }: { icon: typeof Receipt; label: string; value: string }) {
-  return <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2"><Icon className="mx-auto size-4 text-emerald-300" /><p className="mt-1 text-slate-400">{label}</p><p className="mt-0.5 font-semibold text-white">{value}</p></div>;
+  return <div className="rounded-lg border border-white/10 bg-white/3 p-2"><Icon className="mx-auto size-4 text-emerald-300" /><p className="mt-1 text-slate-400">{label}</p><p className="mt-0.5 font-semibold text-white">{value}</p></div>;
 }
 
 function Feature({ icon: Icon, title, text }: { icon: typeof BarChart3; title: string; text: string }) {
-  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6"><Icon className="size-6 text-emerald-300" /><h3 className="mt-5 font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{text}</p></div>;
+  return <div className="rounded-2xl border border-white/10 bg-white/4 p-6"><Icon className="size-6 text-emerald-300" /><h3 className="mt-5 font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{text}</p></div>;
 }
 
 function ProductShowcase() {
@@ -108,7 +108,7 @@ function Pricing() {
 }
 
 function Plan({ name, price, description, items, popular = false }: { name: string; price: string; description: string; items: string[]; popular?: boolean }) {
-  return <div className={`relative rounded-2xl border p-6 ${popular ? "border-indigo-400 bg-indigo-500/10 shadow-xl shadow-indigo-950/30" : "border-white/10 bg-white/[0.04]"}`}>{popular && <span className="absolute -top-3 left-6 rounded-full bg-indigo-500 px-3 py-1 text-xs font-semibold">Most popular</span>}<h3 className="text-xl font-semibold">{name}</h3><p className="mt-2 text-sm text-slate-400">{description}</p><p className="mt-6 text-3xl font-bold">{price}{price !== "Custom" && <span className="text-sm font-normal text-slate-400"> / month</span>}</p><ul className="mt-6 space-y-3 text-sm text-slate-300">{items.map((item) => <li key={item} className="flex gap-2"><Check className="size-4 shrink-0 text-emerald-300" />{item}</li>)}</ul><Button asChild className={`mt-8 w-full ${popular ? "bg-indigo-500 hover:bg-indigo-400" : "bg-white/10 hover:bg-white/20"}`}><Link to="/register">Start 3-month trial</Link></Button></div>;
+  return <div className={`relative rounded-2xl border p-6 ${popular ? "border-indigo-400 bg-indigo-500/10 shadow-xl shadow-indigo-950/30" : "border-white/10 bg-white/4"}`}>{popular && <span className="absolute -top-3 left-6 rounded-full bg-indigo-500 px-3 py-1 text-xs font-semibold">Most popular</span>}<h3 className="text-xl font-semibold">{name}</h3><p className="mt-2 text-sm text-slate-400">{description}</p><p className="mt-6 text-3xl font-bold">{price}{price !== "Custom" && <span className="text-sm font-normal text-slate-400"> / month</span>}</p><ul className="mt-6 space-y-3 text-sm text-slate-300">{items.map((item) => <li key={item} className="flex gap-2"><Check className="size-4 shrink-0 text-emerald-300" />{item}</li>)}</ul><Button asChild className={`mt-8 w-full ${popular ? "bg-indigo-500 hover:bg-indigo-400" : "bg-white/10 hover:bg-white/20"}`}><Link to="/register">Start 3-month trial</Link></Button></div>;
 }
 
 function Testimonials() {

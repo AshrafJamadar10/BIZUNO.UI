@@ -10,28 +10,31 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as CustomersIndexRouteImport } from './routes/customers.index'
-import { Route as ProductsIndexRouteImport } from './routes/products.index'
-import { Route as CategoriesIndexRouteImport } from './routes/categories.index'
-import { Route as InventoryIndexRouteImport } from './routes/inventory.index'
-import { Route as WarehousesIndexRouteImport } from './routes/warehouses.index'
-import { Route as SalesIndexRouteImport } from './routes/sales.index'
-import { Route as PaymentsIndexRouteImport } from './routes/payments.index'
-import { Route as ReportsIndexRouteImport } from './routes/reports.index'
-import { Route as SettingsIndexRouteImport } from './routes/settings.index'
-import { Route as UsersIndexRouteImport } from './routes/users.index'
-import { Route as SuppliersIndexRouteImport } from './routes/suppliers.index'
-import { Route as PurchasesIndexRouteImport } from './routes/purchases.index'
-import { Route as CustomersCustomerIdRouteImport } from './routes/customers.$customerId'
-import { Route as SalesInvoiceIdRouteImport } from './routes/sales.$invoiceId'
-import { Route as LoginIndexRouteImport } from './routes/login.index'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FormsRouteImport } from './routes/forms'
 import { Route as LandingRouteImport } from './routes/landing'
-import { Route as RegisterIndexRouteImport } from './routes/register.index'
+import { Route as WebsiteRouteImport } from './routes/website'
+import { Route as CategoriesIndexRouteImport } from './routes/categories.index'
+import { Route as CustomersIndexRouteImport } from './routes/customers.index'
+import { Route as CustomersCustomerIdRouteImport } from './routes/customers.$customerId'
+import { Route as InventoryIndexRouteImport } from './routes/inventory.index'
+import { Route as LoginIndexRouteImport } from './routes/login.index'
+import { Route as PaymentsIndexRouteImport } from './routes/payments.index'
 import { Route as PlatformIndexRouteImport } from './routes/platform.index'
-import { Route as PlatformTenantsRouteImport } from './routes/platform.tenants'
 import { Route as PlatformPackagesRouteImport } from './routes/platform.packages'
-import { Route as PlatformSubscriptionsRouteImport } from './routes/platform.subscriptions'
 import { Route as PlatformSettingsRouteImport } from './routes/platform.settings'
+import { Route as PlatformSubscriptionsRouteImport } from './routes/platform.subscriptions'
+import { Route as PlatformTenantsRouteImport } from './routes/platform.tenants'
+import { Route as ProductsIndexRouteImport } from './routes/products.index'
+import { Route as PurchasesIndexRouteImport } from './routes/purchases.index'
+import { Route as RegisterIndexRouteImport } from './routes/register.index'
+import { Route as ReportsIndexRouteImport } from './routes/reports.index'
+import { Route as SalesIndexRouteImport } from './routes/sales.index'
+import { Route as SalesInvoiceIdRouteImport } from './routes/sales.$invoiceId'
+import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as SuppliersIndexRouteImport } from './routes/suppliers.index'
+import { Route as UsersIndexRouteImport } from './routes/users.index'
+import { Route as WarehousesIndexRouteImport } from './routes/warehouses.index'
 import { Route as PlatformAdminLoginRouteImport } from './routes/platform.admin.login'
 
 const IndexRoute = IndexRouteImport.update({
@@ -39,79 +42,14 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CustomersIndexRoute = CustomersIndexRouteImport.update({
-  id: '/customers/',
-  path: '/customers/',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProductsIndexRoute = ProductsIndexRouteImport.update({
-  id: '/products/',
-  path: '/products/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
-  id: '/categories/',
-  path: '/categories/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InventoryIndexRoute = InventoryIndexRouteImport.update({
-  id: '/inventory/',
-  path: '/inventory/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const WarehousesIndexRoute = WarehousesIndexRouteImport.update({
-  id: '/warehouses/',
-  path: '/warehouses/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SalesIndexRoute = SalesIndexRouteImport.update({
-  id: '/sales/',
-  path: '/sales/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PaymentsIndexRoute = PaymentsIndexRouteImport.update({
-  id: '/payments/',
-  path: '/payments/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReportsIndexRoute = ReportsIndexRouteImport.update({
-  id: '/reports/',
-  path: '/reports/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsIndexRoute = SettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const UsersIndexRoute = UsersIndexRouteImport.update({
-  id: '/users/',
-  path: '/users/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SuppliersIndexRoute = SuppliersIndexRouteImport.update({
-  id: '/suppliers/',
-  path: '/suppliers/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PurchasesIndexRoute = PurchasesIndexRouteImport.update({
-  id: '/purchases/',
-  path: '/purchases/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CustomersCustomerIdRoute = CustomersCustomerIdRouteImport.update({
-  id: '/customers/$customerId',
-  path: '/customers/$customerId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SalesInvoiceIdRoute = SalesInvoiceIdRouteImport.update({
-  id: '/sales/$invoiceId',
-  path: '/sales/$invoiceId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginIndexRoute = LoginIndexRouteImport.update({
-  id: '/login/',
-  path: '/login/',
+const FormsRoute = FormsRouteImport.update({
+  id: '/forms',
+  path: '/forms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LandingRoute = LandingRouteImport.update({
@@ -119,9 +57,39 @@ const LandingRoute = LandingRouteImport.update({
   path: '/landing',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RegisterIndexRoute = RegisterIndexRouteImport.update({
-  id: '/register/',
-  path: '/register/',
+const WebsiteRoute = WebsiteRouteImport.update({
+  id: '/website',
+  path: '/website',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
+  id: '/categories/',
+  path: '/categories/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomersIndexRoute = CustomersIndexRouteImport.update({
+  id: '/customers/',
+  path: '/customers/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomersCustomerIdRoute = CustomersCustomerIdRouteImport.update({
+  id: '/customers/$customerId',
+  path: '/customers/$customerId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryIndexRoute = InventoryIndexRouteImport.update({
+  id: '/inventory/',
+  path: '/inventory/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginIndexRoute = LoginIndexRouteImport.update({
+  id: '/login/',
+  path: '/login/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentsIndexRoute = PaymentsIndexRouteImport.update({
+  id: '/payments/',
+  path: '/payments/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformIndexRoute = PlatformIndexRouteImport.update({
@@ -129,14 +97,14 @@ const PlatformIndexRoute = PlatformIndexRouteImport.update({
   path: '/platform/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlatformTenantsRoute = PlatformTenantsRouteImport.update({
-  id: '/platform/tenants',
-  path: '/platform/tenants',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PlatformPackagesRoute = PlatformPackagesRouteImport.update({
   id: '/platform/packages',
   path: '/platform/packages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformSettingsRoute = PlatformSettingsRouteImport.update({
+  id: '/platform/settings',
+  path: '/platform/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformSubscriptionsRoute = PlatformSubscriptionsRouteImport.update({
@@ -144,9 +112,59 @@ const PlatformSubscriptionsRoute = PlatformSubscriptionsRouteImport.update({
   path: '/platform/subscriptions',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlatformSettingsRoute = PlatformSettingsRouteImport.update({
-  id: '/platform/settings',
-  path: '/platform/settings',
+const PlatformTenantsRoute = PlatformTenantsRouteImport.update({
+  id: '/platform/tenants',
+  path: '/platform/tenants',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductsIndexRoute = ProductsIndexRouteImport.update({
+  id: '/products/',
+  path: '/products/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PurchasesIndexRoute = PurchasesIndexRouteImport.update({
+  id: '/purchases/',
+  path: '/purchases/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterIndexRoute = RegisterIndexRouteImport.update({
+  id: '/register/',
+  path: '/register/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsIndexRoute = ReportsIndexRouteImport.update({
+  id: '/reports/',
+  path: '/reports/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalesIndexRoute = SalesIndexRouteImport.update({
+  id: '/sales/',
+  path: '/sales/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalesInvoiceIdRoute = SalesInvoiceIdRouteImport.update({
+  id: '/sales/$invoiceId',
+  path: '/sales/$invoiceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuppliersIndexRoute = SuppliersIndexRouteImport.update({
+  id: '/suppliers/',
+  path: '/suppliers/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsersIndexRoute = UsersIndexRouteImport.update({
+  id: '/users/',
+  path: '/users/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WarehousesIndexRoute = WarehousesIndexRouteImport.update({
+  id: '/warehouses/',
+  path: '/warehouses/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformAdminLoginRoute = PlatformAdminLoginRouteImport.update({
@@ -157,115 +175,209 @@ const PlatformAdminLoginRoute = PlatformAdminLoginRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/customers/': typeof CustomersIndexRoute
-  '/products/': typeof ProductsIndexRoute
-  '/categories/': typeof CategoriesIndexRoute
-  '/inventory/': typeof InventoryIndexRoute
-  '/warehouses/': typeof WarehousesIndexRoute
-  '/sales/': typeof SalesIndexRoute
-  '/payments/': typeof PaymentsIndexRoute
-  '/reports/': typeof ReportsIndexRoute
-  '/settings/': typeof SettingsIndexRoute
-  '/users/': typeof UsersIndexRoute
-  '/suppliers/': typeof SuppliersIndexRoute
-  '/purchases/': typeof PurchasesIndexRoute
-  '/customers/$customerId': typeof CustomersCustomerIdRoute
-  '/sales/$invoiceId': typeof SalesInvoiceIdRoute
-  '/login/': typeof LoginIndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/forms': typeof FormsRoute
   '/landing': typeof LandingRoute
-  '/register/': typeof RegisterIndexRoute
-  '/platform/': typeof PlatformIndexRoute
-  '/platform/tenants': typeof PlatformTenantsRoute
+  '/website': typeof WebsiteRoute
+  '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/platform/packages': typeof PlatformPackagesRoute
-  '/platform/subscriptions': typeof PlatformSubscriptionsRoute
   '/platform/settings': typeof PlatformSettingsRoute
+  '/platform/subscriptions': typeof PlatformSubscriptionsRoute
+  '/platform/tenants': typeof PlatformTenantsRoute
+  '/sales/$invoiceId': typeof SalesInvoiceIdRoute
+  '/categories/': typeof CategoriesIndexRoute
+  '/customers/': typeof CustomersIndexRoute
+  '/inventory/': typeof InventoryIndexRoute
+  '/login/': typeof LoginIndexRoute
+  '/payments/': typeof PaymentsIndexRoute
+  '/platform/': typeof PlatformIndexRoute
+  '/products/': typeof ProductsIndexRoute
+  '/purchases/': typeof PurchasesIndexRoute
+  '/register/': typeof RegisterIndexRoute
+  '/reports/': typeof ReportsIndexRoute
+  '/sales/': typeof SalesIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/suppliers/': typeof SuppliersIndexRoute
+  '/users/': typeof UsersIndexRoute
+  '/warehouses/': typeof WarehousesIndexRoute
   '/platform/admin/login': typeof PlatformAdminLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/customers': typeof CustomersIndexRoute
-  '/products': typeof ProductsIndexRoute
-  '/categories': typeof CategoriesIndexRoute
-  '/inventory': typeof InventoryIndexRoute
-  '/warehouses': typeof WarehousesIndexRoute
-  '/sales': typeof SalesIndexRoute
-  '/payments': typeof PaymentsIndexRoute
-  '/reports': typeof ReportsIndexRoute
-  '/settings': typeof SettingsIndexRoute
-  '/users': typeof UsersIndexRoute
-  '/suppliers': typeof SuppliersIndexRoute
-  '/purchases': typeof PurchasesIndexRoute
-  '/customers/$customerId': typeof CustomersCustomerIdRoute
-  '/sales/$invoiceId': typeof SalesInvoiceIdRoute
-  '/login': typeof LoginIndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/forms': typeof FormsRoute
   '/landing': typeof LandingRoute
-  '/register': typeof RegisterIndexRoute
-  '/platform': typeof PlatformIndexRoute
-  '/platform/tenants': typeof PlatformTenantsRoute
+  '/website': typeof WebsiteRoute
+  '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/platform/packages': typeof PlatformPackagesRoute
-  '/platform/subscriptions': typeof PlatformSubscriptionsRoute
   '/platform/settings': typeof PlatformSettingsRoute
+  '/platform/subscriptions': typeof PlatformSubscriptionsRoute
+  '/platform/tenants': typeof PlatformTenantsRoute
+  '/sales/$invoiceId': typeof SalesInvoiceIdRoute
+  '/categories': typeof CategoriesIndexRoute
+  '/customers': typeof CustomersIndexRoute
+  '/inventory': typeof InventoryIndexRoute
+  '/login': typeof LoginIndexRoute
+  '/payments': typeof PaymentsIndexRoute
+  '/platform': typeof PlatformIndexRoute
+  '/products': typeof ProductsIndexRoute
+  '/purchases': typeof PurchasesIndexRoute
+  '/register': typeof RegisterIndexRoute
+  '/reports': typeof ReportsIndexRoute
+  '/sales': typeof SalesIndexRoute
+  '/settings': typeof SettingsIndexRoute
+  '/suppliers': typeof SuppliersIndexRoute
+  '/users': typeof UsersIndexRoute
+  '/warehouses': typeof WarehousesIndexRoute
   '/platform/admin/login': typeof PlatformAdminLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/customers/': typeof CustomersIndexRoute
-  '/products/': typeof ProductsIndexRoute
-  '/categories/': typeof CategoriesIndexRoute
-  '/inventory/': typeof InventoryIndexRoute
-  '/warehouses/': typeof WarehousesIndexRoute
-  '/sales/': typeof SalesIndexRoute
-  '/payments/': typeof PaymentsIndexRoute
-  '/reports/': typeof ReportsIndexRoute
-  '/settings/': typeof SettingsIndexRoute
-  '/users/': typeof UsersIndexRoute
-  '/suppliers/': typeof SuppliersIndexRoute
-  '/purchases/': typeof PurchasesIndexRoute
-  '/customers/$customerId': typeof CustomersCustomerIdRoute
-  '/sales/$invoiceId': typeof SalesInvoiceIdRoute
-  '/login/': typeof LoginIndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/forms': typeof FormsRoute
   '/landing': typeof LandingRoute
-  '/register/': typeof RegisterIndexRoute
-  '/platform/': typeof PlatformIndexRoute
-  '/platform/tenants': typeof PlatformTenantsRoute
+  '/website': typeof WebsiteRoute
+  '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/platform/packages': typeof PlatformPackagesRoute
-  '/platform/subscriptions': typeof PlatformSubscriptionsRoute
   '/platform/settings': typeof PlatformSettingsRoute
+  '/platform/subscriptions': typeof PlatformSubscriptionsRoute
+  '/platform/tenants': typeof PlatformTenantsRoute
+  '/sales/$invoiceId': typeof SalesInvoiceIdRoute
+  '/categories/': typeof CategoriesIndexRoute
+  '/customers/': typeof CustomersIndexRoute
+  '/inventory/': typeof InventoryIndexRoute
+  '/login/': typeof LoginIndexRoute
+  '/payments/': typeof PaymentsIndexRoute
+  '/platform/': typeof PlatformIndexRoute
+  '/products/': typeof ProductsIndexRoute
+  '/purchases/': typeof PurchasesIndexRoute
+  '/register/': typeof RegisterIndexRoute
+  '/reports/': typeof ReportsIndexRoute
+  '/sales/': typeof SalesIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/suppliers/': typeof SuppliersIndexRoute
+  '/users/': typeof UsersIndexRoute
+  '/warehouses/': typeof WarehousesIndexRoute
   '/platform/admin/login': typeof PlatformAdminLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/customers/' | '/products/' | '/categories/' | '/inventory/' | '/warehouses/' | '/sales/' | '/payments/' | '/reports/' | '/settings/' | '/users/' | '/suppliers/' | '/purchases/' | '/customers/$customerId' | '/sales/$invoiceId' | '/login/' | '/landing' | '/register/' | '/platform/' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/forms'
+    | '/landing'
+    | '/website'
+    | '/customers/$customerId'
+    | '/platform/packages'
+    | '/platform/settings'
+    | '/platform/subscriptions'
+    | '/platform/tenants'
+    | '/sales/$invoiceId'
+    | '/categories/'
+    | '/customers/'
+    | '/inventory/'
+    | '/login/'
+    | '/payments/'
+    | '/platform/'
+    | '/products/'
+    | '/purchases/'
+    | '/register/'
+    | '/reports/'
+    | '/sales/'
+    | '/settings/'
+    | '/suppliers/'
+    | '/users/'
+    | '/warehouses/'
+    | '/platform/admin/login'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/customers' | '/products' | '/categories' | '/inventory' | '/warehouses' | '/sales' | '/payments' | '/reports' | '/settings' | '/users' | '/suppliers' | '/purchases' | '/customers/$customerId' | '/sales/$invoiceId' | '/login' | '/landing' | '/register' | '/platform' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
-  id: '__root__' | '/' | '/customers/' | '/products/' | '/categories/' | '/inventory/' | '/warehouses/' | '/sales/' | '/payments/' | '/reports/' | '/settings/' | '/users/' | '/suppliers/' | '/purchases/' | '/customers/$customerId' | '/sales/$invoiceId' | '/login/' | '/landing' | '/register/' | '/platform/' | '/platform/tenants' | '/platform/packages' | '/platform/subscriptions' | '/platform/settings' | '/platform/admin/login'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/forms'
+    | '/landing'
+    | '/website'
+    | '/customers/$customerId'
+    | '/platform/packages'
+    | '/platform/settings'
+    | '/platform/subscriptions'
+    | '/platform/tenants'
+    | '/sales/$invoiceId'
+    | '/categories'
+    | '/customers'
+    | '/inventory'
+    | '/login'
+    | '/payments'
+    | '/platform'
+    | '/products'
+    | '/purchases'
+    | '/register'
+    | '/reports'
+    | '/sales'
+    | '/settings'
+    | '/suppliers'
+    | '/users'
+    | '/warehouses'
+    | '/platform/admin/login'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/forms'
+    | '/landing'
+    | '/website'
+    | '/customers/$customerId'
+    | '/platform/packages'
+    | '/platform/settings'
+    | '/platform/subscriptions'
+    | '/platform/tenants'
+    | '/sales/$invoiceId'
+    | '/categories/'
+    | '/customers/'
+    | '/inventory/'
+    | '/login/'
+    | '/payments/'
+    | '/platform/'
+    | '/products/'
+    | '/purchases/'
+    | '/register/'
+    | '/reports/'
+    | '/sales/'
+    | '/settings/'
+    | '/suppliers/'
+    | '/users/'
+    | '/warehouses/'
+    | '/platform/admin/login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CustomersIndexRoute: typeof CustomersIndexRoute
-  ProductsIndexRoute: typeof ProductsIndexRoute
-  CategoriesIndexRoute: typeof CategoriesIndexRoute
-  InventoryIndexRoute: typeof InventoryIndexRoute
-  WarehousesIndexRoute: typeof WarehousesIndexRoute
-  SalesIndexRoute: typeof SalesIndexRoute
-  PaymentsIndexRoute: typeof PaymentsIndexRoute
-  ReportsIndexRoute: typeof ReportsIndexRoute
-  SettingsIndexRoute: typeof SettingsIndexRoute
-  UsersIndexRoute: typeof UsersIndexRoute
-  SuppliersIndexRoute: typeof SuppliersIndexRoute
-  PurchasesIndexRoute: typeof PurchasesIndexRoute
-  CustomersCustomerIdRoute: typeof CustomersCustomerIdRoute
-  SalesInvoiceIdRoute: typeof SalesInvoiceIdRoute
-  LoginIndexRoute: typeof LoginIndexRoute
+  DashboardRoute: typeof DashboardRoute
+  FormsRoute: typeof FormsRoute
   LandingRoute: typeof LandingRoute
-  RegisterIndexRoute: typeof RegisterIndexRoute
-  PlatformIndexRoute: typeof PlatformIndexRoute
-  PlatformTenantsRoute: typeof PlatformTenantsRoute
+  WebsiteRoute: typeof WebsiteRoute
+  CustomersCustomerIdRoute: typeof CustomersCustomerIdRoute
   PlatformPackagesRoute: typeof PlatformPackagesRoute
-  PlatformSubscriptionsRoute: typeof PlatformSubscriptionsRoute
   PlatformSettingsRoute: typeof PlatformSettingsRoute
+  PlatformSubscriptionsRoute: typeof PlatformSubscriptionsRoute
+  PlatformTenantsRoute: typeof PlatformTenantsRoute
+  SalesInvoiceIdRoute: typeof SalesInvoiceIdRoute
+  CategoriesIndexRoute: typeof CategoriesIndexRoute
+  CustomersIndexRoute: typeof CustomersIndexRoute
+  InventoryIndexRoute: typeof InventoryIndexRoute
+  LoginIndexRoute: typeof LoginIndexRoute
+  PaymentsIndexRoute: typeof PaymentsIndexRoute
+  PlatformIndexRoute: typeof PlatformIndexRoute
+  ProductsIndexRoute: typeof ProductsIndexRoute
+  PurchasesIndexRoute: typeof PurchasesIndexRoute
+  RegisterIndexRoute: typeof RegisterIndexRoute
+  ReportsIndexRoute: typeof ReportsIndexRoute
+  SalesIndexRoute: typeof SalesIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
+  SuppliersIndexRoute: typeof SuppliersIndexRoute
+  UsersIndexRoute: typeof UsersIndexRoute
+  WarehousesIndexRoute: typeof WarehousesIndexRoute
   PlatformAdminLoginRoute: typeof PlatformAdminLoginRoute
 }
 
@@ -278,109 +390,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/customers/': {
-      id: '/customers/'
-      path: '/customers'
-      fullPath: '/customers/'
-      preLoaderRoute: typeof CustomersIndexRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/products/': {
-      id: '/products/'
-      path: '/products'
-      fullPath: '/products/'
-      preLoaderRoute: typeof ProductsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/categories/': {
-      id: '/categories/'
-      path: '/categories'
-      fullPath: '/categories/'
-      preLoaderRoute: typeof CategoriesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inventory/': {
-      id: '/inventory/'
-      path: '/inventory'
-      fullPath: '/inventory/'
-      preLoaderRoute: typeof InventoryIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/warehouses/': {
-      id: '/warehouses/'
-      path: '/warehouses'
-      fullPath: '/warehouses/'
-      preLoaderRoute: typeof WarehousesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sales/': {
-      id: '/sales/'
-      path: '/sales'
-      fullPath: '/sales/'
-      preLoaderRoute: typeof SalesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/payments/': {
-      id: '/payments/'
-      path: '/payments'
-      fullPath: '/payments/'
-      preLoaderRoute: typeof PaymentsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reports/': {
-      id: '/reports/'
-      path: '/reports'
-      fullPath: '/reports/'
-      preLoaderRoute: typeof ReportsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings/': {
-      id: '/settings/'
-      path: '/settings'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof SettingsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/users/': {
-      id: '/users/'
-      path: '/users'
-      fullPath: '/users/'
-      preLoaderRoute: typeof UsersIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/suppliers/': {
-      id: '/suppliers/'
-      path: '/suppliers'
-      fullPath: '/suppliers/'
-      preLoaderRoute: typeof SuppliersIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/purchases/': {
-      id: '/purchases/'
-      path: '/purchases'
-      fullPath: '/purchases/'
-      preLoaderRoute: typeof PurchasesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/customers/$customerId': {
-      id: '/customers/$customerId'
-      path: '/customers/$customerId'
-      fullPath: '/customers/$customerId'
-      preLoaderRoute: typeof CustomersCustomerIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sales/$invoiceId': {
-      id: '/sales/$invoiceId'
-      path: '/sales/$invoiceId'
-      fullPath: '/sales/$invoiceId'
-      preLoaderRoute: typeof SalesInvoiceIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login/': {
-      id: '/login/'
-      path: '/login'
-      fullPath: '/login/'
-      preLoaderRoute: typeof LoginIndexRouteImport
+    '/forms': {
+      id: '/forms'
+      path: '/forms'
+      fullPath: '/forms'
+      preLoaderRoute: typeof FormsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/landing': {
@@ -390,11 +411,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LandingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/register/': {
-      id: '/register/'
-      path: '/register'
-      fullPath: '/register/'
-      preLoaderRoute: typeof RegisterIndexRouteImport
+    '/website': {
+      id: '/website'
+      path: '/website'
+      fullPath: '/website'
+      preLoaderRoute: typeof WebsiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/categories/': {
+      id: '/categories/'
+      path: '/categories'
+      fullPath: '/categories/'
+      preLoaderRoute: typeof CategoriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customers/': {
+      id: '/customers/'
+      path: '/customers'
+      fullPath: '/customers/'
+      preLoaderRoute: typeof CustomersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customers/$customerId': {
+      id: '/customers/$customerId'
+      path: '/customers/$customerId'
+      fullPath: '/customers/$customerId'
+      preLoaderRoute: typeof CustomersCustomerIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory/': {
+      id: '/inventory/'
+      path: '/inventory'
+      fullPath: '/inventory/'
+      preLoaderRoute: typeof InventoryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/': {
+      id: '/login/'
+      path: '/login'
+      fullPath: '/login/'
+      preLoaderRoute: typeof LoginIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payments/': {
+      id: '/payments/'
+      path: '/payments'
+      fullPath: '/payments/'
+      preLoaderRoute: typeof PaymentsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/platform/': {
@@ -404,18 +467,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/platform/tenants': {
-      id: '/platform/tenants'
-      path: '/platform/tenants'
-      fullPath: '/platform/tenants'
-      preLoaderRoute: typeof PlatformTenantsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/platform/packages': {
       id: '/platform/packages'
       path: '/platform/packages'
       fullPath: '/platform/packages'
       preLoaderRoute: typeof PlatformPackagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/settings': {
+      id: '/platform/settings'
+      path: '/platform/settings'
+      fullPath: '/platform/settings'
+      preLoaderRoute: typeof PlatformSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/platform/subscriptions': {
@@ -425,11 +488,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformSubscriptionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/platform/settings': {
-      id: '/platform/settings'
-      path: '/platform/settings'
-      fullPath: '/platform/settings'
-      preLoaderRoute: typeof PlatformSettingsRouteImport
+    '/platform/tenants': {
+      id: '/platform/tenants'
+      path: '/platform/tenants'
+      fullPath: '/platform/tenants'
+      preLoaderRoute: typeof PlatformTenantsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/products/': {
+      id: '/products/'
+      path: '/products'
+      fullPath: '/products/'
+      preLoaderRoute: typeof ProductsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/purchases/': {
+      id: '/purchases/'
+      path: '/purchases'
+      fullPath: '/purchases/'
+      preLoaderRoute: typeof PurchasesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register/': {
+      id: '/register/'
+      path: '/register'
+      fullPath: '/register/'
+      preLoaderRoute: typeof RegisterIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports/': {
+      id: '/reports/'
+      path: '/reports'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof ReportsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sales/': {
+      id: '/sales/'
+      path: '/sales'
+      fullPath: '/sales/'
+      preLoaderRoute: typeof SalesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sales/$invoiceId': {
+      id: '/sales/$invoiceId'
+      path: '/sales/$invoiceId'
+      fullPath: '/sales/$invoiceId'
+      preLoaderRoute: typeof SalesInvoiceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/suppliers/': {
+      id: '/suppliers/'
+      path: '/suppliers'
+      fullPath: '/suppliers/'
+      preLoaderRoute: typeof SuppliersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/users/': {
+      id: '/users/'
+      path: '/users'
+      fullPath: '/users/'
+      preLoaderRoute: typeof UsersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/warehouses/': {
+      id: '/warehouses/'
+      path: '/warehouses'
+      fullPath: '/warehouses/'
+      preLoaderRoute: typeof WarehousesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/platform/admin/login': {
@@ -444,28 +577,31 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CustomersIndexRoute: CustomersIndexRoute,
-  ProductsIndexRoute: ProductsIndexRoute,
-  CategoriesIndexRoute: CategoriesIndexRoute,
-  InventoryIndexRoute: InventoryIndexRoute,
-  WarehousesIndexRoute: WarehousesIndexRoute,
-  SalesIndexRoute: SalesIndexRoute,
-  PaymentsIndexRoute: PaymentsIndexRoute,
-  ReportsIndexRoute: ReportsIndexRoute,
-  SettingsIndexRoute: SettingsIndexRoute,
-  UsersIndexRoute: UsersIndexRoute,
-  SuppliersIndexRoute: SuppliersIndexRoute,
-  PurchasesIndexRoute: PurchasesIndexRoute,
-  CustomersCustomerIdRoute: CustomersCustomerIdRoute,
-  SalesInvoiceIdRoute: SalesInvoiceIdRoute,
-  LoginIndexRoute: LoginIndexRoute,
+  DashboardRoute: DashboardRoute,
+  FormsRoute: FormsRoute,
   LandingRoute: LandingRoute,
-  RegisterIndexRoute: RegisterIndexRoute,
-  PlatformIndexRoute: PlatformIndexRoute,
-  PlatformTenantsRoute: PlatformTenantsRoute,
+  WebsiteRoute: WebsiteRoute,
+  CustomersCustomerIdRoute: CustomersCustomerIdRoute,
   PlatformPackagesRoute: PlatformPackagesRoute,
-  PlatformSubscriptionsRoute: PlatformSubscriptionsRoute,
   PlatformSettingsRoute: PlatformSettingsRoute,
+  PlatformSubscriptionsRoute: PlatformSubscriptionsRoute,
+  PlatformTenantsRoute: PlatformTenantsRoute,
+  SalesInvoiceIdRoute: SalesInvoiceIdRoute,
+  CategoriesIndexRoute: CategoriesIndexRoute,
+  CustomersIndexRoute: CustomersIndexRoute,
+  InventoryIndexRoute: InventoryIndexRoute,
+  LoginIndexRoute: LoginIndexRoute,
+  PaymentsIndexRoute: PaymentsIndexRoute,
+  PlatformIndexRoute: PlatformIndexRoute,
+  ProductsIndexRoute: ProductsIndexRoute,
+  PurchasesIndexRoute: PurchasesIndexRoute,
+  RegisterIndexRoute: RegisterIndexRoute,
+  ReportsIndexRoute: ReportsIndexRoute,
+  SalesIndexRoute: SalesIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
+  SuppliersIndexRoute: SuppliersIndexRoute,
+  UsersIndexRoute: UsersIndexRoute,
+  WarehousesIndexRoute: WarehousesIndexRoute,
   PlatformAdminLoginRoute: PlatformAdminLoginRoute,
 }
 export const routeTree = rootRouteImport
