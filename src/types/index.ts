@@ -49,12 +49,11 @@ export interface Category {
   id: ID;
   name: string;
   description?: string;
-  parentId: ID | null;
   productCount: number;
   status: EntityStatus;
 }
 
-export type CategoryInput = Omit<Category, "id" | "productCount" | "parentId" | "status"> & { parentId?: ID | null; status?: EntityStatus };
+export type CategoryInput = Omit<Category, "id" | "productCount" | "status"> & { status?: EntityStatus };
 
 export interface Product {
   id: ID;
@@ -89,6 +88,24 @@ export interface Warehouse {
 }
 
 export type WarehouseInput = Omit<Warehouse, "id">;
+
+export type InventoryMovementType = "IN" | "OUT" | "TRANSFER" | "ADJUSTMENT";
+
+export interface InventoryCheck {
+  id: ID;
+  productId: ID;
+  productName: string;
+  productSku: string;
+  productUnit: string;
+  warehouseId: ID;
+  warehouseName: string;
+  movementType: InventoryMovementType | null;
+  quantity: number;
+  minStock: number;
+  purchasePrice: number;
+  note?: string;
+  createdAt: string;
+}
 
 export interface StockMovement {
   id: ID;

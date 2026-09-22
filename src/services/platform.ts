@@ -23,10 +23,30 @@ export interface SubscriptionPackage {
   trialDays: number;
   setupFee: number;
   recommended: boolean;
-  features: string[];
+  features: PackageFeature[];
   activeTenants: number;
   status: "active" | "archived";
 }
+
+export type PackageScope = "BUSINESS" | "DASHBOARD" | "PACKAGE" | "ROLE" | "USER" | "SETTINGS" | "AUDIT_LOGS" | "SUBSCRIPTION";
+export type PackageOperation = "CREATE" | "READ" | "UPDATE" | "DELETE";
+export type FeatureLimitType = "NONE" | "COUNT" | "AMOUNT" | "STORAGE";
+export interface PackageFeature {
+  featureCode: string;
+  featureName: string;
+  description: string;
+  scope: PackageScope;
+  operations: PackageOperation[];
+  limitType: FeatureLimitType;
+  limitValue: number;
+  unit: string;
+  isEnabled: boolean;
+  displayOrder: number;
+}
+
+export type PackageInput = Pick<SubscriptionPackage, "name" | "description" | "basePrice" | "billingPeriod" | "packageDays" | "trialDays" | "setupFee" | "recommended"> & {
+  features: PackageFeature[];
+};
 
 export interface TenantSubscription {
   id: string;
@@ -74,7 +94,18 @@ const mapTenant = (row: any): Tenant => {
 };
 
 const mapPackage = (row: any): SubscriptionPackage => {
-  const features = Array.isArray(row.features) ? row.features.map((feature: any) => feature.featureName ?? feature.scope ?? "Included feature") : [];
+  const features = Array.isArray(row.features) ? row.features.map((feature: any): PackageFeature => ({
+    featureCode: feature.packageFeatureCode ?? feature.featureCode ?? "",
+    featureName: feature.featureName ?? feature.scope ?? "Included feature",
+    description: feature.description ?? "",
+    scope: feature.scope ?? "DASHBOARD",
+    operations: Array.isArray(feature.operations) ? feature.operations : [],
+    limitType: feature.limitType ?? "NONE",
+    limitValue: Number(feature.limitValue ?? 0),
+    unit: feature.unit ?? "",
+    isEnabled: feature.isEnabled !== false,
+    displayOrder: Number(feature.displayOrder ?? 0),
+  })) : [];
   return {
     id: String(row.packageId ?? row.id ?? crypto.randomUUID()),
     name: row.name ?? "Package",
@@ -85,7 +116,7 @@ const mapPackage = (row: any): SubscriptionPackage => {
     trialDays: Number(row.trialDays ?? 0),
     setupFee: Number(row.setupFee ?? 0),
     recommended: Boolean(row.recommended),
-    features: features.length ? features : ["Core workspace access"],
+    features,
     activeTenants: Number(row.activeTenants ?? 0),
     status: row.status ?? "active",
   };
@@ -189,11 +220,10 @@ export function updatePackage(id: string, input: Partial<Omit<SubscriptionPackag
       setupFee: Number(input.setupFee ?? 0),
       displayOrder: 0,
       recommended: input.recommended ?? false,
+      features: input.features ?? [],
     }),
   }).then((payload) => mapPackage((payload && typeof payload === "object" && "data" in payload ? (payload as { data: any }).data : payload) ?? {}));
 }
-
-export type PackageInput = Pick<SubscriptionPackage, "name" | "description" | "basePrice" | "billingPeriod" | "packageDays" | "trialDays" | "setupFee" | "recommended">;
 
 const packageRequest = (input: PackageInput) => ({
   name: input.name.trim(),
@@ -205,18 +235,7 @@ const packageRequest = (input: PackageInput) => ({
   setupFee: Number(input.setupFee),
   displayOrder: 0,
   recommended: input.recommended,
-  features: [{
-    featureCode: `${input.name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_DASHBOARD`,
-    featureName: "Dashboard",
-    description: "Platform dashboard access",
-    scope: "DASHBOARD",
-    operations: ["CREATE", "READ", "UPDATE", "DELETE"],
-    limitType: "NONE",
-    limitValue: 0,
-    unit: "workspace",
-    isEnabled: true,
-    displayOrder: 0,
-  }],
+  features: input.features,
 });
 
 export function createPackage(input: PackageInput): Promise<SubscriptionPackage> {
@@ -224,4 +243,8 @@ export function createPackage(input: PackageInput): Promise<SubscriptionPackage>
     method: "POST",
     body: JSON.stringify(packageRequest(input)),
   }).then((payload) => mapPackage((payload && typeof payload === "object" && "data" in payload ? (payload as { data: any }).data : payload) ?? {}));
+}
+
+export function listPackageScopes(): Promise<PackageScope[]> {
+  return request<PackageScope[]>("/bizuno/packages/scopes");
 }

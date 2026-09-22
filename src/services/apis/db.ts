@@ -49,11 +49,11 @@ export const warehouses: Warehouse[] = [
 ];
 
 export const categories: Category[] = [
-  { id: "cat-1", name: "Laptops", parentId: null, productCount: 4, status: "active" },
-  { id: "cat-2", name: "Smartphones", parentId: null, productCount: 3, status: "active" },
-  { id: "cat-3", name: "Accessories", parentId: null, productCount: 4, status: "active" },
-  { id: "cat-4", name: "Office Furniture", parentId: null, productCount: 2, status: "active" },
-  { id: "cat-5", name: "Networking", parentId: null, productCount: 2, status: "active" },
+  { id: "cat-1", name: "Laptops", productCount: 4, status: "active" },
+  { id: "cat-2", name: "Smartphones", productCount: 3, status: "active" },
+  { id: "cat-3", name: "Accessories", productCount: 4, status: "active" },
+  { id: "cat-4", name: "Office Furniture", productCount: 2, status: "active" },
+  { id: "cat-5", name: "Networking", productCount: 2, status: "active" },
 ];
 
 type Seed = Omit<Product, "id" | "categoryName" | "createdAt">;

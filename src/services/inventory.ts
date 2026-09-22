@@ -1,22 +1,26 @@
 import { request } from "@/services/apis/client";
 import { getStoredBusinessCode } from "@/lib/auth";
-import type { ID, ListQuery, Paginated, Product, Warehouse, WarehouseInput } from "@/types";
+import type { ID, InventoryCheck, ListQuery, Paginated, Product, Warehouse, WarehouseInput } from "@/types";
 
 export interface InventorySummary { totalProducts: number; totalUnits: number; lowStock: number; outOfStock: number; stockValue: number }
 type BackendPage<T> = { content: T[]; page: number; size: number; totalElements: number };
+type InventoryDTO = { inventoryMovementId: string; productId: string; productName?: string; productSku?: string; productUnit?: string; warehouseId?: string; warehouseName?: string; movementType?: string; quantity?: number; minStock?: number; purchasePrice?: number; note?: string; createdAt?: string };
 type WarehouseDTO = { warehouseId: string; name: string; location?: string; contactPerson?: string; phone?: string; isActive: boolean };
+type InventorySummaryDTO = { totalProducts: number; totalUnits: number; lowStock: number; outOfStock: number; stockValue: number };
 const path = (resource: string) => `/bizuno/business/${encodeURIComponent(getStoredBusinessCode())}/${resource}`;
 const ensureCode = () => { if (!getStoredBusinessCode()) throw new Error("Business session is missing. Please sign in again."); };
 const mapWarehouse = (item: WarehouseDTO): Warehouse => ({ id: item.warehouseId, name: item.name, location: item.location ?? "", contactPerson: item.contactPerson, phone: item.phone, status: item.isActive ? "active" : "inactive" });
 const query = (input: ListQuery = {}) => new URLSearchParams({ page: String(Math.max(0, (input.page ?? 1) - 1)), size: String(input.pageSize ?? 100), sortBy: input.sortBy ?? "name", sortDirection: input.sortDir === "desc" ? "desc" : "ASC" });
-export function stockStatusOfProduct(p: Pick<Product, "stock" | "minStock">) { if (p.stock <= 0) return "out_of_stock"; if (p.stock <= p.minStock) return "low_stock"; return "in_stock"; }
+const mapInventory = (item: InventoryDTO): InventoryCheck => ({ id: item.inventoryMovementId, productId: item.productId, productName: item.productName ?? "", productSku: item.productSku ?? "", productUnit: item.productUnit ?? "", warehouseId: item.warehouseId ?? "", warehouseName: item.warehouseName ?? "", movementType: item.movementType ? item.movementType.toUpperCase() as InventoryCheck["movementType"] : null, quantity: Number(item.quantity ?? 0), minStock: Number(item.minStock ?? 0), purchasePrice: Number(item.purchasePrice ?? 0), note: item.note, createdAt: item.createdAt ?? "" });
+export function stockStatusOfProduct(p: Pick<InventoryCheck, "quantity" | "minStock"> | Pick<Product, "stock" | "minStock">) { const quantity = "quantity" in p ? p.quantity : p.stock; if (quantity <= 0) return "out_of_stock"; if (quantity <= p.minStock) return "low_stock"; return "in_stock"; }
 export const stockStatusOf = stockStatusOfProduct;
-export async function getInventorySummary(): Promise<InventorySummary> { return { totalProducts: 0, totalUnits: 0, lowStock: 0, outOfStock: 0, stockValue: 0 }; }
-export async function listInventory(_query: ListQuery = {}): Promise<Paginated<Product>> { return { rows: [], total: 0, page: 1, pageSize: 10 }; }
+export async function getInventorySummary(): Promise<InventorySummary> { ensureCode(); return request<InventorySummaryDTO>(`${path("inventory")}/summary`); }
+export async function listInventory(queryInput: ListQuery = {}): Promise<Paginated<InventoryCheck>> { ensureCode(); const result = await request<BackendPage<InventoryDTO>>(`${path("inventory")}?${query({ ...queryInput, sortBy: "quantity" })}`); const rows = result.content.map(mapInventory); const search = queryInput.search?.toLowerCase().trim(); const filteredRows = search ? rows.filter((item) => [item.productName, item.productSku, item.warehouseName].some((value) => value.toLowerCase().includes(search))) : rows; return { rows: filteredRows, total: search ? filteredRows.length : result.totalElements, page: result.page + 1, pageSize: result.size }; }
+export async function updateInventory(id: ID, input: Pick<InventoryCheck, "warehouseId" | "quantity"> & { note?: string }): Promise<InventoryCheck> { ensureCode(); return mapInventory(await request<InventoryDTO>(`${path("inventory")}/${id}`, { method: "PUT", body: JSON.stringify({ warehouseId: input.warehouseId || undefined, quantity: input.quantity, note: input.note || undefined }) })); }
 export async function listWarehouses(): Promise<Warehouse[]> { ensureCode(); const result = await request<BackendPage<WarehouseDTO>>(`${path("warehouse")}?${query()}`); return result.content.map(mapWarehouse); }
 export async function createWarehouse(input: WarehouseInput): Promise<Warehouse> { ensureCode(); return mapWarehouse(await request<WarehouseDTO>(path("warehouse"), { method: "POST", body: JSON.stringify({ name: input.name, location: input.location || undefined, contactPerson: input.contactPerson || undefined, phone: input.phone || undefined }) })); }
 export async function updateWarehouse(id: ID, input: Partial<WarehouseInput>): Promise<Warehouse> { ensureCode(); return mapWarehouse(await request<WarehouseDTO>(`${path("warehouse")}/${id}`, { method: "PUT", body: JSON.stringify({ name: input.name, location: input.location || undefined, contactPerson: input.contactPerson || undefined, phone: input.phone || undefined, status: input.status === "active" }) })); }
 export async function deleteWarehouse(id: ID): Promise<void> { ensureCode(); await request<unknown>(`${path("warehouse")}/${id}`, { method: "DELETE" }); }
-export async function listStockMovements(_productId?: ID) { return []; }
+export async function listStockMovements(productId?: ID): Promise<InventoryCheck[]> { ensureCode(); const result = await listInventory({ page: 1, pageSize: 100, ...(productId ? { search: productId } : {}) }); return result.rows; }
 export interface TransferInput { productId: ID; fromWarehouseId: ID; toWarehouseId: ID; quantity: number; note?: string }
 export async function transferStock(_input: TransferInput): Promise<void> { throw new Error("Stock transfers are not available from the warehouse API yet."); }

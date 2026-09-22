@@ -42,6 +42,18 @@ export function useUpdateWarehouse() {
   });
 }
 
+export function useUpdateInventory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: ID; input: Parameters<typeof api.updateInventory>[1] }) =>
+      api.updateInventory(id, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: inventoryKeys.all });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
 export function useDeleteWarehouse() {
   const qc = useQueryClient();
   return useMutation({
