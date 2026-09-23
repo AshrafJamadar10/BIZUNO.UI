@@ -34,6 +34,7 @@ const PasswordField: FC<PasswordFieldProps> = ({
   minLength = 8,
   maxLength = 32,
   sx,
+   size = 'small',
   showStrengthIndicator = true,
   confirmFieldName,
   ...rest
@@ -91,6 +92,7 @@ const PasswordField: FC<PasswordFieldProps> = ({
               <TextField
                 {...field}
                 {...rest}
+                size={size}
                 fullWidth
                 required={required}
                 label={label}
@@ -106,17 +108,26 @@ const PasswordField: FC<PasswordFieldProps> = ({
                 }}
                 error={hasError}
                 helperText={errors[name]?.message?.toString() || ' '}
-               slotProps={{
-  htmlInput: { maxLength },
+             slotProps={{
+  ...rest.slotProps,
+  inputLabel: {
+    ...rest.slotProps?.inputLabel,
+    shrink: rest.placeholder ? true : undefined,
+  },
+  htmlInput: {
+    ...rest.slotProps?.htmlInput,
+    maxLength,
+  },
   input: {
+    ...rest.slotProps?.input,
     endAdornment: (
       <InputAdornment position="end">
         <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
           {showPassword ? <Visibility /> : <VisibilityOff />}
         </IconButton>
       </InputAdornment>
-    )
-  }
+    ),
+  },
 }}
                 sx={{
                   '& .MuiInputLabel-asterisk': { color: 'error.main' },

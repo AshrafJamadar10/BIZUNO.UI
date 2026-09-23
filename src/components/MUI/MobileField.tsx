@@ -11,7 +11,7 @@ type MobileFieldProps = TextFieldProps & {
   sx?: SxProps<Theme>;
 };
 
-const MobileField: React.FC<MobileFieldProps> = ({ label, name, required = false, sx = {}, ...rest }) => {
+const MobileField: React.FC<MobileFieldProps> = ({ label, name,size='small', required = false, sx = {}, ...rest }) => {
   const {
     control,
     formState: { errors }
@@ -39,6 +39,7 @@ const MobileField: React.FC<MobileFieldProps> = ({ label, name, required = false
         <TextField
           {...field}
           {...rest}
+          size={size}
           fullWidth
           label={label}
           value={field.value || ''}

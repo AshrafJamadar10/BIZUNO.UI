@@ -12,7 +12,7 @@ type EmailFieldProps = TextFieldProps & {
   sx?: SxProps<Theme>;
 };
 
-const EmailField: FC<EmailFieldProps> = ({ label, name, sx, required = false, ...rest }) => {
+const EmailField: FC<EmailFieldProps> = ({ label, name, sx,size = 'small', required = false, ...rest }) => {
   const { t } = useTranslation();
   const translations = getComponentTranslations(t);
   const {
@@ -37,6 +37,7 @@ const EmailField: FC<EmailFieldProps> = ({ label, name, sx, required = false, ..
         <TextField
           {...field}
           {...rest}
+          size={size}
           label={label}
           inputMode="email"
           type="email"
@@ -46,6 +47,13 @@ const EmailField: FC<EmailFieldProps> = ({ label, name, sx, required = false, ..
           error={!!errors[name]}
           helperText={String(errors[name]?.message || ' ')}
           onChange={(e) => field.onChange(SanitizeEmailRegex(e.target.value))}
+           slotProps={{
+    ...rest.slotProps,
+    inputLabel: {
+      ...rest.slotProps?.inputLabel,
+      shrink: rest.placeholder ? true : undefined,
+    },
+  }}
           sx={{ '& .MuiInputLabel-asterisk': { color: 'error.main' }, ...sx }}
         />
       )}

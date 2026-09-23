@@ -12,7 +12,7 @@ type AadharCardInputProps = TextFieldProps & {
   sx?: SxProps<Theme>;
 };
 
-const AadhaarCardField: FC<AadharCardInputProps> = ({ name, label, required = false, sx, ...rest }) => {
+const AadhaarCardField: FC<AadharCardInputProps> = ({ name, label,size = 'small', required = false, sx, ...rest }) => {
   const { t } = useTranslation();
   const translations = getComponentTranslations(t);
   const {
@@ -38,6 +38,7 @@ const AadhaarCardField: FC<AadharCardInputProps> = ({ name, label, required = fa
         <TextField
           {...field}
           {...rest}
+          size={size}
           label={label}
           fullWidth
           required={required}
@@ -49,14 +50,20 @@ const AadhaarCardField: FC<AadharCardInputProps> = ({ name, label, required = fa
           error={!!errors[name]}
           helperText={String(errors[name]?.message || ' ')}
         slotProps={{
+  ...rest.slotProps,
+  inputLabel: {
+    ...rest.slotProps?.inputLabel,
+    shrink: rest.placeholder ? true : undefined,
+  },
   htmlInput: {
+    ...rest.slotProps?.htmlInput,
     maxLength: 14,
     onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (!/[\d]/.test(e.key) && !['Backspace', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
       }
-    }
-  }
+    },
+  },
 }}
           sx={{
             '& .MuiInputLabel-asterisk': { color: 'error.main' },

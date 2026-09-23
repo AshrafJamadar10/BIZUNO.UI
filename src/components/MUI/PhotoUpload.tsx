@@ -2,49 +2,66 @@
 /* eslint-disable react-hooks/preserve-manual-memoization */
 /* eslint-disable react-hooks/immutability */
 import React, {
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
-  useCallback,
-  useMemo,
 } from "react";
 import {
   Box,
-  IconButton,
-  Typography,
-  CircularProgress,
-  Paper,
-  Fade,
-  Tooltip,
-  type SxProps,
-  type Theme,
-  alpha,
-  Grow,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Fade,
+  FormControl,
+  FormHelperText,
+  IconButton,
+  InputLabel,
+  OutlinedInput,
+  Tooltip,
+  Typography,
+  alpha,
   useTheme,
+  type SxProps,
+  type Theme,
 } from "@mui/material";
 import {
-  Delete,
-  CloudUpload,
-  CheckCircle,
-  Image as ImageIcon,
-  Close as CloseIcon,
-  Check,
-  Crop,
   CameraAlt,
+  Check,
+  CheckCircle,
+  Close as CloseIcon,
+  CloudUpload,
+  Crop,
+  Delete,
   FlipCameraIos,
+  Image as ImageIcon,
   Replay,
 } from "@mui/icons-material";
+import { AnimatePresence, motion } from "framer-motion";
 import { useFormContext } from "react-hook-form";
 import { compressMultipleImages } from "../../utils/imageCompressor";
 import { showSnackbar } from "../MUI/ToastMessage";
-import { motion, AnimatePresence } from "framer-motion";
+
+/* ═══════════════════════════════════════════════════════════════
+ *  TYPES & CONSTANTS
+ * ═══════════════════════════════════════════════════════════════ */
 
 type UploadSize = "small" | "medium" | "large";
+type HandleType =
+  | "n" | "s" | "e" | "w"
+  | "nw" | "ne" | "sw" | "se"
+  | "move" | null;
+
+interface CropBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 interface PhotoUploadProps {
   name: string;
@@ -71,25 +88,6 @@ interface PhotoUploadProps {
 
 type FormValues = Record<string, unknown>;
 
-interface CropBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-type HandleType =
-  | "n"
-  | "s"
-  | "e"
-  | "w"
-  | "nw"
-  | "ne"
-  | "sw"
-  | "se"
-  | "move"
-  | null;
-
 const CROP_ACCENT = "#FF5722";
 const CROP_ACCENT_HOVER = "#e64a19";
 
@@ -103,48 +101,34 @@ const SIZE_TOKENS: Record<
     countFontSize: string;
     cameraBtnSize: number;
     cameraIconSize: number;
-    deleteBtnSize: number;   // ← new
-    deleteIconSize: number;  // ← new
+    deleteBtnSize: number;
+    deleteIconSize: number;
     gap: number;
   }
 > = {
   small: {
-    previewSize: 22,
-    boxPadding: 1,
-    dropIconSize: 15,
-    dropFontSize: "0.65rem",
-    countFontSize: "0.55rem",
-    cameraBtnSize: 24,
-    cameraIconSize: 14,
-    deleteBtnSize: 18,       // ← was 26 fixed
-    deleteIconSize: 11,      // ← was 15 fixed
-    gap: 0.75,
+    previewSize: 22, boxPadding: 1, dropIconSize: 15,
+    dropFontSize: "0.65rem", countFontSize: "0.55rem",
+    cameraBtnSize: 24, cameraIconSize: 14,
+    deleteBtnSize: 18, deleteIconSize: 11, gap: 0.75,
   },
   medium: {
-    previewSize: 28,
-    boxPadding: 1.5,
-    dropIconSize: 18,
-    dropFontSize: "0.7rem",
-    countFontSize: "0.6rem",
-    cameraBtnSize: 30,
-    cameraIconSize: 16,
-    deleteBtnSize: 22,       // ← scales up
-    deleteIconSize: 13,
-    gap: 1,
+    previewSize: 28, boxPadding: 1.5, dropIconSize: 18,
+    dropFontSize: "0.7rem", countFontSize: "0.6rem",
+    cameraBtnSize: 30, cameraIconSize: 16,
+    deleteBtnSize: 22, deleteIconSize: 13, gap: 1,
   },
   large: {
-    previewSize: 40,
-    boxPadding: 2,
-    dropIconSize: 22,
-    dropFontSize: "0.85rem",
-    countFontSize: "0.7rem",
-    cameraBtnSize: 38,
-    cameraIconSize: 20,
-    deleteBtnSize: 30,       // ← scales up
-    deleteIconSize: 16,
-    gap: 1.25,
+    previewSize: 40, boxPadding: 2, dropIconSize: 22,
+    dropFontSize: "0.85rem", countFontSize: "0.7rem",
+    cameraBtnSize: 38, cameraIconSize: 20,
+    deleteBtnSize: 30, deleteIconSize: 16, gap: 1.25,
   },
 };
+
+/* ═══════════════════════════════════════════════════════════════
+ *  COMPONENT
+ * ═══════════════════════════════════════════════════════════════ */
 
 const PhotoUpload: React.FC<PhotoUploadProps> = ({
   name,
@@ -168,11 +152,9 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
   cameraEnabled = true,
   size = "small",
 }) => {
-  /* ────────────────────────────────────────────────────────── */
-  /*  THEME — with safe fallback for apps without dark mode     */
-  /* ────────────────────────────────────────────────────────── */
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const tokens = SIZE_TOKENS[size];
 
   const {
     setValue,
@@ -181,77 +163,61 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     formState: { errors },
   } = useFormContext<FormValues>();
 
-  const tokens = SIZE_TOKENS[size];
-
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const formPhotos = watch(name) as (File | string)[] | undefined;
+  const errorMessage = errors[name]?.message as string | undefined;
+  const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
-  const [previews, setPreviews] = useState<string[]>([]);
-  const [uploading, setUploading] = useState<boolean>(false);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [deletedPhotos, setDeletedPhotos] = useState<string[]>([]);
-  const [dragActive, setDragActive] = useState<boolean>(false);
-
-  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
+  /* ── refs ── */
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const initialized = useRef(false);
-
-  const [cropDialogOpen, setCropDialogOpen] = useState<boolean>(false);
-  const [cropImageSrc, setCropImageSrc] = useState<string>("");
-  const [tempFile, setTempFile] = useState<File | null>(null);
-
   const cropImgRef = useRef<HTMLImageElement | null>(null);
   const cropStageRef = useRef<HTMLDivElement | null>(null);
-  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number }>({
-    w: 0,
-    h: 0,
-  });
-  const [renderedSize, setRenderedSize] = useState<{
-    w: number;
-    h: number;
-    left: number;
-    top: number;
-  }>({
-    w: 0,
-    h: 0,
-    left: 0,
-    top: 0,
-  });
-  const [cropBox, setCropBox] = useState<CropBox>({
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-  });
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragState = useRef<{
     handle: HandleType;
     startX: number;
     startY: number;
     startBox: CropBox;
   } | null>(null);
-  const [imageLoaded, setImageLoaded] = useState<boolean>(false);
 
-  const [cameraOpen, setCameraOpen] = useState<boolean>(false);
+  /* ── state ── */
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [deletedPhotos, setDeletedPhotos] = useState<string[]>([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState("");
+  const [tempFile, setTempFile] = useState<File | null>(null);
+  const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
+  const [renderedSize, setRenderedSize] = useState({
+    w: 0, h: 0, left: 0, top: 0,
+  });
+  const [cropBox, setCropBox] = useState<CropBox>({
+    x: 0, y: 0, width: 0, height: 0,
+  });
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const [facingMode, setFacingMode] = useState<"user" | "environment">(
-    "environment",
-  );
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isSwitching, setIsSwitching] = useState(false);
 
-  const errorMessage = errors[name]?.message as string;
-  const maxSizeBytes = maxSizeMB * 1024 * 1024;
-
-  /* ────────────────────────────────────────────────────────── */
-  /*  PALETTE — derived from theme.palette.*, safe in any app   */
-  /* ────────────────────────────────────────────────────────── */
+  /* ═══════════════════════════════════════════════════════════
+   *  PALETTE (memoized)
+   * ═══════════════════════════════════════════════════════════ */
   const palette = useMemo(() => {
     const t = theme.palette;
     return {
-      containerBg: t.background.paper,
-      containerBorder: t.divider,
+      containerBorder: isDark
+        ? "rgba(255,255,255,0.18)"
+        : "rgba(15,23,42,0.28)",
+      containerBorderHover: isDark ? "#ffffff" : "#000000",
       containerBorderActive: t.primary.main,
       containerBorderError: t.error.main,
+      containerBg: t.background.paper,
       containerBgDrag: alpha(t.primary.main, isDark ? 0.06 : 0.03),
       containerBgDisabled: alpha(t.action.disabledBackground, 0.4),
 
@@ -265,8 +231,10 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
         ? alpha(t.common.white, 0.015)
         : alpha(t.common.black, 0.008),
       previewTileBg: isDark ? alpha(t.common.white, 0.02) : "#ffffff",
-      previewTileBorder: t.divider,
-      previewTileBorderHover: t.primary.main,
+      previewTileBorder: isDark
+        ? "rgba(255,255,255,0.18)"
+        : "rgba(15,23,42,0.22)",
+      previewTileBorderHover: isDark ? "#ffffff" : "#000000",
       previewTileShadowHover: isDark
         ? `0 2px 8px ${alpha(t.common.black, 0.4)}`
         : `0 2px 8px ${alpha(t.common.black, 0.08)}`,
@@ -300,103 +268,86 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
       cropAccent: CROP_ACCENT,
       cropAccentHover: CROP_ACCENT_HOVER,
-      cropCanvasBg: "#000",
-      cameraCanvasBg: "#000",
     };
   }, [theme, isDark]);
 
-  const getSafePhotosArray = useCallback((): (File | string)[] => {
-    if (!formPhotos) return [];
-    if (Array.isArray(formPhotos)) return formPhotos;
-    return [];
-  }, [formPhotos]);
+  /* ═══════════════════════════════════════════════════════════
+   *  DATA HELPERS
+   * ═══════════════════════════════════════════════════════════ */
+  const getSafePhotosArray = useCallback(
+    (): (File | string)[] =>
+      Array.isArray(formPhotos) ? formPhotos : [],
+    [formPhotos],
+  );
 
-  const generatePreview = useCallback((photo: string | File): string => {
-    if (photo instanceof File) {
-      return URL.createObjectURL(photo);
-    }
-    return photo;
-  }, []);
+  const generatePreview = useCallback(
+    (photo: string | File): string =>
+      photo instanceof File ? URL.createObjectURL(photo) : photo,
+    [],
+  );
 
+  /* ── default photos seeding ── */
   useEffect(() => {
     if (initialized.current) return;
-    if (!defaultPhotos || defaultPhotos.length === 0) return;
-
+    if (!defaultPhotos?.length) return;
     initialized.current = true;
-    setValue(name, defaultPhotos, {
-      shouldValidate: false,
-      shouldDirty: false,
-    });
-
-    const urls = defaultPhotos
-      .filter((photo) => photo)
-      .map((photo) => generatePreview(photo))
-      .filter((url) => url);
-
+    setValue(name, defaultPhotos, { shouldValidate: false, shouldDirty: false });
+    const urls = defaultPhotos.filter(Boolean).map(generatePreview).filter(Boolean);
     setPreviews(urls);
   }, [defaultPhotos, name, setValue, generatePreview]);
 
+  /* ── preview list sync ── */
   useEffect(() => {
     const photos = getSafePhotosArray();
-    if (!photos || photos.length === 0) {
+    if (!photos.length) {
       setPreviews([]);
       return;
     }
-
-    const urls = photos
-      .filter((photo) => photo)
-      .map((photo) => generatePreview(photo))
-      .filter((url) => url);
-
+    const urls = photos.filter(Boolean).map(generatePreview).filter(Boolean);
     setPreviews(urls);
-
     return () => {
       urls.forEach((url) => {
-        if (url && url.startsWith("blob:")) URL.revokeObjectURL(url);
+        if (url.startsWith("blob:")) URL.revokeObjectURL(url);
       });
     };
   }, [getSafePhotosArray, generatePreview]);
 
+  /* ═══════════════════════════════════════════════════════════
+   *  VALIDATION
+   * ═══════════════════════════════════════════════════════════ */
   const validateImageDimensions = useCallback(
-    (file: File): Promise<{ valid: boolean; error?: string }> => {
-      return new Promise((resolve) => {
-        if (file.type === "image/svg+xml") {
-          resolve({ valid: true });
-          return;
-        }
+    (file: File): Promise<{ valid: boolean; error?: string }> =>
+      new Promise((resolve) => {
+        if (file.type === "image/svg+xml") return resolve({ valid: true });
 
         const img = new Image();
         const objectUrl = URL.createObjectURL(file);
 
         img.onload = () => {
           URL.revokeObjectURL(objectUrl);
-
           if (maxWidth && img.width > maxWidth) {
-            resolve({
+            return resolve({
               valid: false,
               error: `Image width is ${img.width}px. Maximum allowed width is ${maxWidth}px`,
             });
-          } else if (maxHeight && img.height > maxHeight) {
-            resolve({
+          }
+          if (maxHeight && img.height > maxHeight) {
+            return resolve({
               valid: false,
               error: `Image height is ${img.height}px. Maximum allowed height is ${maxHeight}px`,
             });
-          } else {
-            resolve({ valid: true });
           }
+          resolve({ valid: true });
         };
-
         img.onerror = () => {
           URL.revokeObjectURL(objectUrl);
           resolve({
             valid: false,
-            error: `Could not read image dimensions. File may be corrupted or invalid format.`,
+            error: "Could not read image dimensions. File may be corrupted or invalid format.",
           });
         };
-
         img.src = objectUrl;
-      });
-    },
+      }),
     [maxWidth, maxHeight],
   );
 
@@ -404,16 +355,15 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     async (files: File[]): Promise<{ valid: File[]; errors: string[] }> => {
       const valid: File[] = [];
       const errors: string[] = [];
-
       for (const file of files) {
         if (file.size > maxSizeBytes) {
           errors.push(`${file.name}: Max ${maxSizeMB}MB file allowed`);
         } else if (!accept.split(",").includes(file.type)) {
           errors.push(`${file.name}: Unsupported file format`);
         } else {
-          const dimensionCheck = await validateImageDimensions(file);
-          if (!dimensionCheck.valid && dimensionCheck.error) {
-            errors.push(`${file.name}: ${dimensionCheck.error}`);
+          const check = await validateImageDimensions(file);
+          if (!check.valid && check.error) {
+            errors.push(`${file.name}: ${check.error}`);
           } else {
             valid.push(file);
           }
@@ -424,23 +374,23 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     [maxSizeBytes, maxSizeMB, accept, validateImageDimensions],
   );
 
+  /* ═══════════════════════════════════════════════════════════
+   *  CROP LOGIC
+   * ═══════════════════════════════════════════════════════════ */
   const initCropBox = useCallback(
     (dispW: number, dispH: number) => {
       let w = dispW;
       let h = dispH;
-
       if (cropAspect) {
-        if (w / h > cropAspect) {
-          w = h * cropAspect;
-        } else {
-          h = w / cropAspect;
-        }
+        if (w / h > cropAspect) w = h * cropAspect;
+        else h = w / cropAspect;
       }
-
-      const x = (dispW - w) / 2;
-      const y = (dispH - h) / 2;
-
-      setCropBox({ x, y, width: w, height: h });
+      setCropBox({
+        x: (dispW - w) / 2,
+        y: (dispH - h) / 2,
+        width: w,
+        height: h,
+      });
     },
     [cropAspect],
   );
@@ -456,9 +406,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
     const imgRatio = naturalSize.w / naturalSize.h;
     const stageRatio = stageW / stageH;
-
-    let dispW: number;
-    let dispH: number;
+    let dispW: number, dispH: number;
 
     if (imgRatio > stageRatio) {
       dispW = stageW;
@@ -468,32 +416,31 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
       dispW = stageH * imgRatio;
     }
 
-    const left = (stageW - dispW) / 2;
-    const top = (stageH - dispH) / 2;
-
-    setRenderedSize({ w: dispW, h: dispH, left, top });
+    setRenderedSize({
+      w: dispW,
+      h: dispH,
+      left: (stageW - dispW) / 2,
+      top: (stageH - dispH) / 2,
+    });
     initCropBox(dispW, dispH);
   }, [naturalSize, initCropBox]);
 
   useEffect(() => {
     if (!cropDialogOpen || !imageLoaded) return;
     computeRenderedLayout();
-
-    const handleResize = () => computeRenderedLayout();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const onResize = () => computeRenderedLayout();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, [cropDialogOpen, imageLoaded, computeRenderedLayout]);
 
   const clampBox = useCallback(
     (box: CropBox, dispW: number, dispH: number): CropBox => {
       const minSize = Math.min(dispW, dispH) * 0.05;
       let { x, y, width, height } = box;
-
       width = Math.min(Math.max(width, minSize), dispW);
       height = Math.min(Math.max(height, minSize), dispH);
       x = Math.max(0, Math.min(x, dispW - width));
       y = Math.max(0, Math.min(y, dispH - height));
-
       return { x, y, width, height };
     },
     [],
@@ -509,7 +456,6 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
       dispH: number,
     ): CropBox => {
       const box = { ...startBox };
-
       if (handle === "move") {
         box.x = startBox.x + dx;
         box.y = startBox.y + dy;
@@ -526,49 +472,23 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
       let newBottom = bottom;
 
       switch (handle) {
-        case "e":
-          newRight = right + dx;
-          break;
-        case "w":
-          newLeft = startBox.x + dx;
-          break;
-        case "s":
-          newBottom = bottom + dy;
-          break;
-        case "n":
-          newTop = startBox.y + dy;
-          break;
-        case "ne":
-          newRight = right + dx;
-          newTop = startBox.y + dy;
-          break;
-        case "nw":
-          newLeft = startBox.x + dx;
-          newTop = startBox.y + dy;
-          break;
-        case "se":
-          newRight = right + dx;
-          newBottom = bottom + dy;
-          break;
-        case "sw":
-          newLeft = startBox.x + dx;
-          newBottom = bottom + dy;
-          break;
+        case "e": newRight = right + dx; break;
+        case "w": newLeft = startBox.x + dx; break;
+        case "s": newBottom = bottom + dy; break;
+        case "n": newTop = startBox.y + dy; break;
+        case "ne": newRight = right + dx; newTop = startBox.y + dy; break;
+        case "nw": newLeft = startBox.x + dx; newTop = startBox.y + dy; break;
+        case "se": newRight = right + dx; newBottom = bottom + dy; break;
+        case "sw": newLeft = startBox.x + dx; newBottom = bottom + dy; break;
       }
 
       if (newRight - newLeft < minSize) {
-        if (handle === "e" || handle === "ne" || handle === "se") {
-          newRight = newLeft + minSize;
-        } else {
-          newLeft = newRight - minSize;
-        }
+        if (handle === "e" || handle === "ne" || handle === "se") newRight = newLeft + minSize;
+        else newLeft = newRight - minSize;
       }
       if (newBottom - newTop < minSize) {
-        if (handle === "s" || handle === "sw" || handle === "se") {
-          newBottom = newTop + minSize;
-        } else {
-          newTop = newBottom - minSize;
-        }
+        if (handle === "s" || handle === "sw" || handle === "se") newBottom = newTop + minSize;
+        else newTop = newBottom - minSize;
       }
 
       box.x = newLeft;
@@ -616,7 +536,6 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
           box.height = newHeight;
         }
       }
-
       return clampBox(box, dispW, dispH);
     },
     [cropAspect, clampBox],
@@ -626,23 +545,32 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     (clientX: number, clientY: number) => {
       const ds = dragState.current;
       if (!ds) return;
-
-      const dx = clientX - ds.startX;
-      const dy = clientY - ds.startY;
-      const dispW = renderedSize.w;
-      const dispH = renderedSize.h;
-
       const next = applyEdgeDelta(
         ds.handle,
         ds.startBox,
-        dx,
-        dy,
-        dispW,
-        dispH,
+        clientX - ds.startX,
+        clientY - ds.startY,
+        renderedSize.w,
+        renderedSize.h,
       );
       setCropBox(next);
     },
     [renderedSize, applyEdgeDelta],
+  );
+
+  const mouseMoveHandler = useCallback(
+    (e: MouseEvent) => handlePointerMove(e.clientX, e.clientY),
+    [handlePointerMove],
+  );
+
+  const touchMoveHandler = useCallback(
+    (e: TouchEvent) => {
+      if (e.touches.length) {
+        e.preventDefault();
+        handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    },
+    [handlePointerMove],
   );
 
   const stopDrag = useCallback(() => {
@@ -651,25 +579,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     window.removeEventListener("mouseup", stopDrag);
     window.removeEventListener("touchmove", touchMoveHandler);
     window.removeEventListener("touchend", stopDrag);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const mouseMoveHandler = useCallback(
-    (e: MouseEvent) => {
-      handlePointerMove(e.clientX, e.clientY);
-    },
-    [handlePointerMove],
-  );
-
-  const touchMoveHandler = useCallback(
-    (e: TouchEvent) => {
-      if (e.touches.length > 0) {
-        e.preventDefault();
-        handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
-      }
-    },
-    [handlePointerMove],
-  );
+  }, [mouseMoveHandler, touchMoveHandler]);
 
   const startDrag = useCallback(
     (handle: HandleType, clientX: number, clientY: number) => {
@@ -681,13 +591,20 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
       };
       window.addEventListener("mousemove", mouseMoveHandler);
       window.addEventListener("mouseup", stopDrag);
-      window.addEventListener("touchmove", touchMoveHandler, {
-        passive: false,
-      });
+      window.addEventListener("touchmove", touchMoveHandler, { passive: false });
       window.addEventListener("touchend", stopDrag);
     },
     [cropBox, mouseMoveHandler, stopDrag, touchMoveHandler],
   );
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("mousemove", mouseMoveHandler);
+      window.removeEventListener("mouseup", stopDrag);
+      window.removeEventListener("touchmove", touchMoveHandler);
+      window.removeEventListener("touchend", stopDrag);
+    };
+  }, [mouseMoveHandler, stopDrag, touchMoveHandler]);
 
   const onHandleMouseDown = useCallback(
     (handle: HandleType) => (e: React.MouseEvent) => {
@@ -701,29 +618,13 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
   const onHandleTouchStart = useCallback(
     (handle: HandleType) => (e: React.TouchEvent) => {
       e.stopPropagation();
-      if (e.touches.length > 0) {
-        startDrag(handle, e.touches[0].clientX, e.touches[0].clientY);
-      }
+      if (e.touches.length) startDrag(handle, e.touches[0].clientX, e.touches[0].clientY);
     },
     [startDrag],
   );
 
-  useEffect(() => {
-    return () => {
-      window.removeEventListener("mousemove", mouseMoveHandler);
-      window.removeEventListener("mouseup", stopDrag);
-      window.removeEventListener("touchmove", touchMoveHandler);
-      window.removeEventListener("touchend", stopDrag);
-    };
-  }, [mouseMoveHandler, stopDrag, touchMoveHandler]);
-
   const getCroppedImage = useCallback(
-    async (
-      imageSrc: string,
-      box: CropBox,
-      dispW: number,
-      dispH: number,
-    ): Promise<File> => {
+    async (imageSrc: string, box: CropBox, dispW: number, dispH: number): Promise<File> => {
       const image = new Image();
       image.src = imageSrc;
       await new Promise((resolve) => {
@@ -732,32 +633,31 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
       const scaleX = image.naturalWidth / dispW;
       const scaleY = image.naturalHeight / dispH;
-
-      const sx = box.x * scaleX;
-      const sy = box.y * scaleY;
-      const sw = box.width * scaleX;
-      const sh = box.height * scaleY;
-
       const canvas = document.createElement("canvas");
-      canvas.width = Math.round(sw);
-      canvas.height = Math.round(sh);
-      const ctx = canvas.getContext("2d");
+      canvas.width = Math.round(box.width * scaleX);
+      canvas.height = Math.round(box.height * scaleY);
 
+      const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(
+          image,
+          box.x * scaleX,
+          box.y * scaleY,
+          box.width * scaleX,
+          box.height * scaleY,
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+        );
       }
 
       return new Promise((resolve) => {
         canvas.toBlob(
           (blob) => {
-            if (blob) {
-              const file = new File([blob], `cropped_${Date.now()}.jpg`, {
-                type: "image/jpeg",
-              });
-              resolve(file);
-            }
+            if (blob) resolve(new File([blob], `cropped_${Date.now()}.jpg`, { type: "image/jpeg" }));
           },
           "image/jpeg",
           0.95,
@@ -776,43 +676,31 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     setCropBox({ x: 0, y: 0, width: 0, height: 0 });
   }, []);
 
+  /* ═══════════════════════════════════════════════════════════
+   *  ADD / REMOVE
+   * ═══════════════════════════════════════════════════════════ */
   const addFilesToForm = useCallback(
     (files: File[]) => {
-      const currentFiles = getSafePhotosArray();
-      const updatedFiles = [...currentFiles, ...files];
-      setValue(name, updatedFiles, {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
+      const updated = [...getSafePhotosArray(), ...files];
+      setValue(name, updated, { shouldValidate: true, shouldDirty: true });
     },
     [getSafePhotosArray, name, setValue],
   );
 
   const handleCropConfirm = useCallback(async () => {
     if (!cropImageSrc || !renderedSize.w || !renderedSize.h) return;
-
     try {
       const croppedFile = await getCroppedImage(
-        cropImageSrc,
-        cropBox,
-        renderedSize.w,
-        renderedSize.h,
+        cropImageSrc, cropBox, renderedSize.w, renderedSize.h,
       );
       addFilesToForm([croppedFile]);
       showSnackbar("success", "Image cropped and uploaded successfully");
       resetCropDialogState();
-    } catch (error) {
-      console.error("Crop error:", error);
+    } catch (err) {
+      console.error("Crop error:", err);
       showSnackbar("error", "Failed to crop image");
     }
-  }, [
-    cropImageSrc,
-    cropBox,
-    renderedSize,
-    getCroppedImage,
-    addFilesToForm,
-    resetCropDialogState,
-  ]);
+  }, [cropImageSrc, cropBox, renderedSize, getCroppedImage, addFilesToForm, resetCropDialogState]);
 
   const handleSkipCrop = useCallback(() => {
     if (tempFile) {
@@ -844,21 +732,17 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
   const processFiles = useCallback(
     async (files: File[]): Promise<void> => {
-      if (files.length === 0) return;
+      if (!files.length) return;
 
       for (const file of files) {
-        const dimensionCheck = await validateImageDimensions(file);
-        if (!dimensionCheck.valid) {
-          showSnackbar(
-            "error",
-            dimensionCheck.error || `Invalid dimensions for ${file.name}`,
-          );
+        const check = await validateImageDimensions(file);
+        if (!check.valid) {
+          showSnackbar("error", check.error || `Invalid dimensions for ${file.name}`);
           return;
         }
       }
 
-      const currentFiles = getSafePhotosArray();
-      const availableSlots = maxFiles - currentFiles.length;
+      const availableSlots = maxFiles - getSafePhotosArray().length;
       if (availableSlots <= 0) {
         showSnackbar("warning", `Maximum ${maxFiles} images only allowed`);
         return;
@@ -869,7 +753,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
         showSnackbar("warning", `Maximum ${maxFiles} images only allowed`);
       }
 
-      if (cropEnabled && filesToAdd.length > 0) {
+      if (cropEnabled && filesToAdd.length) {
         openCropDialog(filesToAdd[0]);
         return;
       }
@@ -879,25 +763,19 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
       try {
         setUploadProgress(30);
-        let processedFiles;
-        if (compress) {
-          processedFiles = await compressMultipleImages(filesToAdd, {
-            maxWidth: 1280,
-            maxHeight: 1280,
-            quality: 0.82,
-            maxSizeKB: targetSizeKB,
-          });
-        } else {
-          processedFiles = filesToAdd;
-        }
-        addFilesToForm(processedFiles);
+        const processed = compress
+          ? await compressMultipleImages(filesToAdd, {
+              maxWidth: 1280, maxHeight: 1280, quality: 0.82, maxSizeKB: targetSizeKB,
+            })
+          : filesToAdd;
+        addFilesToForm(processed);
         setUploadProgress(100);
         showSnackbar(
           "success",
-          `${processedFiles.length} image(s) uploaded${compress ? " and compressed" : ""}`,
+          `${processed.length} image(s) uploaded${compress ? " and compressed" : ""}`,
         );
-      } catch (error) {
-        console.error("Compression error:", error);
+      } catch (err) {
+        console.error("Compression error:", err);
         showSnackbar(
           "error",
           compress ? "Failed to compress images" : "Failed to upload images",
@@ -910,14 +788,8 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
       }
     },
     [
-      getSafePhotosArray,
-      maxFiles,
-      targetSizeKB,
-      validateImageDimensions,
-      compress,
-      cropEnabled,
-      openCropDialog,
-      addFilesToForm,
+      getSafePhotosArray, maxFiles, targetSizeKB, validateImageDimensions,
+      compress, cropEnabled, openCropDialog, addFilesToForm,
     ],
   );
 
@@ -925,53 +797,44 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
       const files = event.target.files;
       if (!files || disabled) return;
-      const newFiles = Array.from(files);
-      const { valid, errors } = await validateFiles(newFiles);
-
-      if (errors.length > 0) {
+      const { valid, errors } = await validateFiles(Array.from(files));
+      if (errors.length) {
         showSnackbar("error", errors[0]);
         event.target.value = "";
         return;
       }
-
-      if (valid.length > 0) {
-        await processFiles(valid);
-      }
-
+      if (valid.length) await processFiles(valid);
       event.target.value = "";
     },
     [disabled, validateFiles, processFiles],
   );
 
   const handleDragOver = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
       if (!disabled) setDragActive(true);
     },
     [disabled],
   );
 
-  const handleDragLeave = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      setDragActive(false);
-    },
-    [],
-  );
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+  }, []);
 
   const handleDrop = useCallback(
-    async (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
+    async (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
       setDragActive(false);
       if (disabled) return;
-      const files = Array.from(event.dataTransfer.files);
-      if (files.length === 0) return;
+      const files = Array.from(e.dataTransfer.files);
+      if (!files.length) return;
       const { valid, errors } = await validateFiles(files);
-      if (errors.length > 0) {
+      if (errors.length) {
         showSnackbar("error", errors[0]);
         return;
       }
-      if (valid.length > 0) await processFiles(valid);
+      if (valid.length) await processFiles(valid);
     },
     [disabled, validateFiles, processFiles],
   );
@@ -979,28 +842,23 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
   const handleRemovePhoto = useCallback(
     (index: number, e: React.MouseEvent): void => {
       e.stopPropagation();
-
-      const currentFiles = getSafePhotosArray();
-      const removed = currentFiles[index];
+      const current = getSafePhotosArray();
+      const removed = current[index];
 
       if (typeof removed === "string") {
         setDeletedPhotos((prev) => [...prev, removed]);
       }
 
-      const updatedFiles = currentFiles.filter((_, i) => i !== index);
-
-      setValue(name, updatedFiles, {
+      setValue(name, current.filter((_, i) => i !== index), {
         shouldValidate: true,
         shouldDirty: true,
       });
 
-      let fileName = "Image";
-
-      if (removed instanceof File) {
-        fileName = removed.name;
-      } else if (typeof removed === "string") {
-        fileName = removed.split("/").pop()?.split("?")[0] || "Image";
-      }
+      const fileName = removed instanceof File
+        ? removed.name
+        : typeof removed === "string"
+          ? removed.split("/").pop()?.split("?")[0] || "Image"
+          : "Image";
 
       showSnackbar("error", `${fileName} deleted`);
     },
@@ -1011,14 +869,11 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     if (!disabled) fileInputRef.current?.click();
   }, [disabled]);
 
-  const handleEnlargeImage = useCallback(
-    (src: string) => setEnlargedImage(src),
-    [],
-  );
+  const handleEnlargeImage = useCallback((src: string) => setEnlargedImage(src), []);
   const handleCloseEnlarged = useCallback(() => setEnlargedImage(null), []);
 
   useEffect(() => {
-    if (deletedPhotos.length === 0) return;
+    if (!deletedPhotos.length) return;
     setValue("deletedPhotos", deletedPhotos as unknown, { shouldDirty: true });
   }, [deletedPhotos, setValue]);
 
@@ -1035,11 +890,12 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     },
   });
 
+  /* ═══════════════════════════════════════════════════════════
+   *  CAMERA
+   * ═══════════════════════════════════════════════════════════ */
   const stopCameraStream = useCallback(() => {
     setCameraStream((prev) => {
-      if (prev) {
-        prev.getTracks().forEach((track) => track.stop());
-      }
+      prev?.getTracks().forEach((t) => t.stop());
       return null;
     });
   }, []);
@@ -1048,62 +904,37 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     async (mode: "user" | "environment") => {
       try {
         stopCameraStream();
-
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          showSnackbar(
-            "error",
-            "Camera API is not supported. Please use a modern browser over HTTPS.",
-          );
+        if (!navigator.mediaDevices?.getUserMedia) {
+          showSnackbar("error", "Camera API is not supported. Please use a modern browser over HTTPS.");
           setCameraOpen(false);
           return;
         }
 
-        let stream: MediaStream | null = null;
-
-        const attempts: Array<MediaStreamConstraints> = [
+        const attempts: MediaStreamConstraints[] = [
           {
             video: {
-              facingMode:
-                mode === "environment"
-                  ? { ideal: "environment" }
-                  : { ideal: "user" },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
+              facingMode: mode === "environment" ? { ideal: "environment" } : { ideal: "user" },
+              width: { ideal: 1280 }, height: { ideal: 720 },
             },
             audio: false,
           },
-          {
-            video: {
-              facingMode: mode,
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
-            audio: false,
-          },
-          {
-            video: { facingMode: mode },
-            audio: false,
-          },
-          {
-            video: true,
-            audio: false,
-          },
+          { video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { facingMode: mode }, audio: false },
+          { video: true, audio: false },
         ];
 
-        for (const constraints of attempts) {
+        let stream: MediaStream | null = null;
+        for (const c of attempts) {
           try {
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            stream = await navigator.mediaDevices.getUserMedia(c);
             if (stream) break;
           } catch (err) {
-            console.warn("Camera attempt failed:", constraints, err);
+            console.warn("Camera attempt failed:", c, err);
           }
         }
 
         if (!stream) {
-          showSnackbar(
-            "error",
-            "Unable to access camera. Please check permissions and close other apps using the camera.",
-          );
+          showSnackbar("error", "Unable to access camera. Please check permissions and close other apps using the camera.");
           setCameraOpen(false);
           return;
         }
@@ -1113,16 +944,13 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
           videoRef.current.srcObject = stream;
           try {
             await videoRef.current.play();
-          } catch (playErr) {
-            console.warn("Video play error:", playErr);
+          } catch (err) {
+            console.warn("Video play error:", err);
           }
         }
-      } catch (error) {
-        console.error("Camera error:", error);
-        showSnackbar(
-          "error",
-          "Unable to access camera. Please check permissions.",
-        );
+      } catch (err) {
+        console.error("Camera error:", err);
+        showSnackbar("error", "Unable to access camera. Please check permissions.");
         setCameraOpen(false);
       }
     },
@@ -1131,16 +959,14 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
   const handleOpenCamera = useCallback(() => {
     if (disabled) return;
-    const currentFiles = getSafePhotosArray();
-    if (currentFiles.length >= maxFiles) {
+    if (getSafePhotosArray().length >= maxFiles) {
       showSnackbar("warning", `Maximum ${maxFiles} images only allowed`);
       return;
     }
     setCapturedImage(null);
     setCameraOpen(true);
-    const initialMode = "environment";
-    setFacingMode(initialMode);
-    startCameraStream(initialMode);
+    setFacingMode("environment");
+    startCameraStream("environment");
   }, [disabled, getSafePhotosArray, maxFiles, startCameraStream]);
 
   const handleCloseCamera = useCallback(() => {
@@ -1149,41 +975,18 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     setCapturedImage(null);
   }, [stopCameraStream]);
 
-  const [isSwitching, setIsSwitching] = useState(false);
-
   const handleFlipCamera = useCallback(async () => {
     if (isSwitching) return;
-
     const nextMode = facingMode === "user" ? "environment" : "user";
     setIsSwitching(true);
     setFacingMode(nextMode);
-    showSnackbar(
-      "info",
-      `Switching to ${nextMode === "environment" ? "back" : "front"} camera...`,
-    );
-
+    showSnackbar("info", `Switching to ${nextMode === "environment" ? "back" : "front"} camera...`);
     try {
       await startCameraStream(nextMode);
-    } catch (error) {
-      console.error("Failed to switch camera:", error);
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-          audio: false,
-        });
-        setCameraStream(stream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-        showSnackbar("warning", "Using any available camera");
-      } catch {
-        showSnackbar("error", "Failed to access camera after switching");
-        setCameraOpen(false);
-      }
+    } catch (err) {
+      console.error("Failed to switch camera:", err);
+      showSnackbar("error", "Failed to access camera after switching");
+      setCameraOpen(false);
     } finally {
       setIsSwitching(false);
     }
@@ -1193,7 +996,6 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
-
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
@@ -1204,28 +1006,20 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
       }
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
-
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
-    setCapturedImage(dataUrl);
+    setCapturedImage(canvas.toDataURL("image/jpeg", 0.95));
   }, [facingMode]);
 
-  const handleRetakePhoto = useCallback(() => {
-    setCapturedImage(null);
-  }, []);
+  const handleRetakePhoto = useCallback(() => setCapturedImage(null), []);
 
   const handleUseCapturedPhoto = useCallback(() => {
     if (!capturedImage) return;
-
     fetch(capturedImage)
       .then((res) => res.blob())
       .then((blob) => {
-        const file = new File([blob], `camera_${Date.now()}.jpg`, {
-          type: "image/jpeg",
-        });
+        const file = new File([blob], `camera_${Date.now()}.jpg`, { type: "image/jpeg" });
         stopCameraStream();
         setCameraOpen(false);
         setCapturedImage(null);
-
         if (cropEnabled) {
           openCropDialog(file);
         } else {
@@ -1233,23 +1027,14 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
           showSnackbar("success", "Photo captured and uploaded successfully");
         }
       })
-      .catch(() => {
-        showSnackbar("error", "Failed to process captured photo");
-      });
-  }, [
-    capturedImage,
-    stopCameraStream,
-    cropEnabled,
-    openCropDialog,
-    addFilesToForm,
-  ]);
+      .catch(() => showSnackbar("error", "Failed to process captured photo"));
+  }, [capturedImage, stopCameraStream, cropEnabled, openCropDialog, addFilesToForm]);
 
-  useEffect(() => {
-    return () => {
-      stopCameraStream();
-    };
-  }, [stopCameraStream]);
+  useEffect(() => () => stopCameraStream(), [stopCameraStream]);
 
+  /* ═══════════════════════════════════════════════════════════
+   *  RENDER
+   * ═══════════════════════════════════════════════════════════ */
   const currentFilesCount = getSafePhotosArray().length;
   const PREVIEW_SIZE = tokens.previewSize;
 
@@ -1261,360 +1046,373 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     <Box
       onMouseDown={onHandleMouseDown(handle)}
       onTouchStart={onHandleTouchStart(handle)}
-      sx={{
-        position: "absolute",
-        cursor,
-        touchAction: "none",
-        zIndex: 5,
-        ...style,
-      }}
+      sx={{ position: "absolute", cursor, touchAction: "none", zIndex: 5, ...style }}
     />
   );
 
   return (
     <>
-      <Box sx={{ width: fullWidth ? "100%" : "auto", ...sx }}>
-        {label && (
-          <Typography
-            variant="caption"
-            component="label"
-            sx={{
-              display: "block",
-              fontWeight: 600,
-              fontSize: "0.75rem",
-              mb: 0.75,
-              color: disabled ? "text.disabled" : "text.primary",
-            }}
-          >
-            {label}
-            {required && (
-              <Typography
-                component="span"
-                sx={{ color: "error.main", ml: 0.3, fontSize: "0.75rem" }}
-              >
-                *
-              </Typography>
-            )}
-          </Typography>
-        )}
-
-        <Paper
+      <Box sx={{ width: fullWidth ? "100%" : "auto" }}>
+        <FormControl
+          fullWidth={fullWidth}
+          required={required}
+          error={Boolean(errorMessage)}
+          disabled={disabled}
           variant="outlined"
+          sx={sx}
+        >
+         <InputLabel
+  shrink
+  htmlFor={`${name}-upload`}
+  sx={{
+    px: 0.5,
+    bgcolor: "background.paper",
+  }}
+>
+  {label}
+</InputLabel>
+
+          <OutlinedInput
+            id={`${name}-upload`}
+            notched
+            label={label}
+            multiline
+            value=" "
+            onChange={() => {}}
+            inputComponent={React.forwardRef<HTMLDivElement, any>(
+  function UploadInput({ ...props }, ref) {
+    return (
+      <Box
+        {...props}
+        ref={ref}
+        sx={{ display: "flex", flexDirection: "column", p: 0 }}
+      >
+        {/* ── DROP ZONE ── */}
+        <Box
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
           sx={{
-            border: `1.5px solid ${
-              dragActive
-                ? palette.containerBorderActive
-                : errorMessage
-                  ? palette.containerBorderError
-                  : palette.containerBorder
-            }`,
-            borderRadius: 1,
-            bgcolor: dragActive
-              ? palette.containerBgDrag
-              : disabled
-                ? palette.containerBgDisabled
-                : palette.containerBg,
+            p: tokens.boxPadding,
+            opacity: disabled ? 0.6 : 1,
+            borderBottom:
+              previews.length > 0
+                ? `1px solid ${palette.containerBorder}`
+                : "none",
             transition: "all 0.2s",
-            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: tokens.gap,
+            flexWrap: "wrap",
           }}
         >
           <Box
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
+            onClick={handleUploadClick}
             sx={{
-              p: tokens.boxPadding,
-              opacity: disabled ? 0.6 : 1,
-              borderBottom:
-                previews.length > 0
-                  ? `1px solid ${palette.containerBorder}`
-                  : "none",
-              transition: "all 0.2s",
+              cursor: disabled ? "not-allowed" : "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: tokens.gap,
-              flexWrap: "wrap",
+              gap: 1,
+              flex: 1,
+              minWidth: 0,
+              borderRadius: 1,
+              py: 0.5,
+              "&:hover": {
+                bgcolor:
+                  !disabled && !dragActive ? palette.dropHoverBg : undefined,
+              },
             }}
           >
-            <Box
-              onClick={handleUploadClick}
-              sx={{
-                cursor: disabled ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 1,
-                flex: 1,
-                minWidth: 0,
-                borderRadius: 1,
-                py: 0.5,
-                "&:hover": {
-                  bgcolor:
-                    !disabled && !dragActive ? palette.dropHoverBg : undefined,
-                },
-              }}
-            >
-              {uploading ? (
-                <>
-                  <CircularProgress
-                    size={tokens.dropIconSize - 2}
-                    thickness={4}
-                    sx={{ color: palette.dropIconActive }}
-                  />
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ fontSize: tokens.countFontSize }}
-                  >
-                    {uploadProgress}%
-                  </Typography>
-                </>
-              ) : (
-                <>
-                  <CloudUpload
-                    sx={{
-                      fontSize: tokens.dropIconSize,
-                      color: dragActive
-                        ? palette.dropIconActive
-                        : palette.dropIcon,
-                    }}
-                  />
-                  <Typography
-                    variant="caption"
-                    noWrap
-                    sx={{
-                      color: disabled
-                        ? palette.dropTextDisabled
-                        : palette.dropText,
-                      fontWeight: 500,
-                      fontSize: tokens.dropFontSize,
-                    }}
-                  >
-                    {dragActive
-                      ? "Drop here"
-                      : placeholder || "Upload images"}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: palette.dropIcon,
-                      fontSize: tokens.countFontSize,
-                    }}
-                  >
-                    ({currentFilesCount}/{maxFiles})
-                  </Typography>
-                </>
-              )}
-            </Box>
-
-            {cameraEnabled && !uploading && (
-              <Tooltip title="Take a photo" arrow>
-                <span>
-                  <IconButton
-                    onClick={handleOpenCamera}
-                    disabled={disabled || currentFilesCount >= maxFiles}
-                    size="small"
-                    sx={{
-                      bgcolor: alpha(palette.dropIconActive, 0.08),
-                      width: tokens.cameraBtnSize,
-                      height: tokens.cameraBtnSize,
-                      "&:hover": {
-                        bgcolor: alpha(palette.dropIconActive, 0.15),
-                      },
-                    }}
-                  >
-                    <CameraAlt
-                      sx={{
-                        fontSize: tokens.cameraIconSize,
-                        color: palette.dropIconActive,
-                      }}
-                    />
-                  </IconButton>
-                </span>
-              </Tooltip>
+            {uploading ? (
+              <>
+                <CircularProgress
+                  size={tokens.dropIconSize - 2}
+                  thickness={4}
+                  sx={{ color: palette.dropIconActive }}
+                />
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontSize: tokens.countFontSize }}
+                >
+                  {uploadProgress}%
+                </Typography>
+              </>
+            ) : (
+              <>
+                <CloudUpload
+                  sx={{
+                    fontSize: tokens.dropIconSize,
+                    color: dragActive
+                      ? palette.dropIconActive
+                      : palette.dropIcon,
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  noWrap
+                  sx={{
+                    color: disabled
+                      ? palette.dropTextDisabled
+                      : palette.dropText,
+                    fontWeight: 500,
+                    fontSize: tokens.dropFontSize,
+                  }}
+                >
+                  {dragActive ? "Drop here" : placeholder || "Upload images"}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: palette.dropIcon,
+                    fontSize: tokens.countFontSize,
+                  }}
+                >
+                  ({currentFilesCount}/{maxFiles})
+                </Typography>
+              </>
             )}
           </Box>
 
-          {previews.length > 0 && (
-            <Grow in={true}>
-              <Box
-                sx={{ p: tokens.boxPadding, bgcolor: palette.previewGridBg }}
-              >
-                <Box
+          {cameraEnabled && !uploading && (
+            <Tooltip title="Take a photo" arrow>
+              <span>
+                <IconButton
+                  onClick={handleOpenCamera}
+                  disabled={disabled || currentFilesCount >= maxFiles}
+                  size="small"
                   sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: tokens.gap,
-                    alignItems: "center",
+                    bgcolor: alpha(palette.dropIconActive, 0.08),
+                    width: tokens.cameraBtnSize,
+                    height: tokens.cameraBtnSize,
+                    "&:hover": {
+                      bgcolor: alpha(palette.dropIconActive, 0.15),
+                    },
                   }}
                 >
-                  <AnimatePresence>
-                  {previews.map((img, index) => (
-  <motion.div
-  key={`${img}-${index}`}
-  initial={{ opacity: 0, scale: 0.8 }}
-  animate={{ opacity: 1, scale: 1 }}
-  exit={{ opacity: 0, scale: 0.8 }}
-  transition={{ duration: 0.15 }}
->
-  {/* Pair container — one border around thumbnail + delete */}
-  <Box
-    sx={{
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 0.5,
-      p: 0.5,
-      borderRadius: 1,
-      border: `1px solid ${palette.previewTileBorder}`,
-      bgcolor: palette.previewTileBg,
-      transition: "all 0.15s ease",
-      "&:hover": {
-        borderColor: palette.previewTileBorderHover,
-        boxShadow: palette.previewTileShadowHover,
-      },
-    }}
-  >
-    {/* Thumbnail — no border, just the image */}
-    <Tooltip title="Click to enlarge" arrow>
-      <Box
-        sx={{
-          position: "relative",
-          width: PREVIEW_SIZE,
-          height: PREVIEW_SIZE,
-          borderRadius: 0.5,
-          overflow: "hidden",
-          cursor: "pointer",
-          bgcolor: palette.previewTileBg,
-          flexShrink: 0,
-        }}
-        onClick={() => handleEnlargeImage(img)}
-      >
-        {img ? (
-          <Box
-            component="img"
-            src={img}
-            alt={`Preview ${index + 1}`}
-            sx={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        ) : (
-          <Box
-            sx={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <ImageIcon
-              sx={{ fontSize: 14, color: palette.imagePlaceholder }}
-            />
+                  <CameraAlt
+                    sx={{
+                      fontSize: tokens.cameraIconSize,
+                      color: palette.dropIconActive,
+                    }}
+                  />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
+        </Box>
+
+        {/* ── PREVIEW LIST ── */}
+        {previews.length > 0 && (
+          <Box sx={{ p: tokens.boxPadding, bgcolor: palette.previewGridBg }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: tokens.gap,
+                alignItems: "center",
+              }}
+            >
+              <AnimatePresence>
+                {previews.map((img, index) => (
+                  <motion.div
+                    key={`${img}-${index}`}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <Box
+                      sx={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 0.5,
+                        p: 0.5,
+                        borderRadius: 1,
+                        border: `1px solid ${palette.previewTileBorder}`,
+                        bgcolor: palette.previewTileBg,
+                        transition: "all 0.15s ease",
+                        "&:hover": {
+                          borderColor: palette.previewTileBorderHover,
+                          boxShadow: palette.previewTileShadowHover,
+                        },
+                      }}
+                    >
+                      <Tooltip title="Click to enlarge" arrow>
+                        <Box
+                          sx={{
+                            position: "relative",
+                            width: PREVIEW_SIZE,
+                            height: PREVIEW_SIZE,
+                            borderRadius: 0.5,
+                            overflow: "hidden",
+                            cursor: "pointer",
+                            bgcolor: palette.previewTileBg,
+                            flexShrink: 0,
+                          }}
+                          onClick={() => handleEnlargeImage(img)}
+                        >
+                          {img ? (
+                            <Box
+                              component="img"
+                              src={img}
+                              alt={`Preview ${index + 1}`}
+                              sx={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          ) : (
+                            <Box
+                              sx={{
+                                width: "100%",
+                                height: "100%",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <ImageIcon
+                                sx={{
+                                  fontSize: 14,
+                                  color: palette.imagePlaceholder,
+                                }}
+                              />
+                            </Box>
+                          )}
+                        </Box>
+                      </Tooltip>
+
+                      {!disabled && (
+                        <Tooltip title="Remove" arrow>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemovePhoto(index, e);
+                            }}
+                            sx={{
+                              width: tokens.deleteBtnSize,
+                              height: tokens.deleteBtnSize,
+                              p: 0,
+                              flexShrink: 0,
+                              bgcolor: palette.deleteBadgeBg,
+                              color: palette.deleteBadgeIcon,
+                              transition: "all 0.15s ease",
+                              "&:hover": {
+                                bgcolor: palette.deleteBadgeHoverBg,
+                              },
+                            }}
+                          >
+                            <Delete sx={{ fontSize: tokens.deleteIconSize }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {!disabled &&
+                currentFilesCount < maxFiles &&
+                currentFilesCount > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                  >
+                    <Box
+                      onClick={handleUploadClick}
+                      sx={{
+                        width: PREVIEW_SIZE + 14,
+                        height: PREVIEW_SIZE + 8,
+                        borderRadius: 1,
+                        border: `1px dashed ${palette.addTileBorder}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        bgcolor: palette.addTileBg,
+                        "&:hover": {
+                          borderColor: palette.addTileHoverBorder,
+                          bgcolor: palette.addTileHoverBg,
+                        },
+                      }}
+                    >
+                      <CloudUpload
+                        sx={{
+                          fontSize: Math.max(10, tokens.dropIconSize - 6),
+                          color: palette.addTileIcon,
+                        }}
+                      />
+                    </Box>
+                  </motion.div>
+                )}
+            </Box>
+
+            {showCompressionInfo && !uploading && previews.length > 0 && (
+              <Fade in>
+                <Box
+                  sx={{
+                    mt: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                  }}
+                >
+                  <CheckCircle
+                    sx={{ fontSize: 10, color: palette.successColor }}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: palette.successColor,
+                      fontSize: "0.6rem",
+                    }}
+                  >
+                    Optimized (&lt;{targetSizeKB}KB)
+                  </Typography>
+                </Box>
+              </Fade>
+            )}
           </Box>
         )}
       </Box>
-    </Tooltip>
+    );
+  },
+)}
+            sx={{
+              p: 0,
+              alignItems: "stretch",
+              "& .MuiOutlinedInput-input": { p: 0 },
+              "& fieldset": {
+                borderColor: isDark
+                  ? "rgba(255,255,255,0.18)"
+                  : "rgba(15,23,42,0.28)",
+                borderWidth: 1.5,
+              },
+              "&:hover fieldset": {
+                borderColor: disabled
+                  ? undefined
+                  : errorMessage
+                    ? "error.main"
+                    : isDark
+                      ? "#ffffff"
+                      : "#000000",
+              },
+              "&.Mui-focused fieldset": { borderColor: "primary.main" },
+              ...(dragActive && {
+                "& fieldset": { borderColor: "primary.main", borderWidth: 1.5 },
+              }),
+            }}
+          />
 
-    {/* Delete button — no border, relies on the pair border */}
-    {!disabled && (
-      <Tooltip title="Remove" arrow>
-        <IconButton
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleRemovePhoto(index, e);
-          }}
-          sx={{
-            width: tokens.deleteBtnSize,
-            height: tokens.deleteBtnSize,
-            p: 0,
-            flexShrink: 0,
-            bgcolor: palette.deleteBadgeBg,
-            color: palette.deleteBadgeIcon,
-            transition: "all 0.15s ease",
-            "&:hover": {
-              bgcolor: palette.deleteBadgeHoverBg,
-            },
-          }}
-        >
-          <Delete sx={{ fontSize: tokens.deleteIconSize }} />
-        </IconButton>
-      </Tooltip>
-    )}
-  </Box>
-</motion.div>
-))}
-                  </AnimatePresence>
-
-                  {!disabled &&
-                    currentFilesCount < maxFiles &&
-                    currentFilesCount > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                      >
-                        <Box
-  onClick={handleUploadClick}
-  sx={{
-    width: PREVIEW_SIZE + 14,
-    height: PREVIEW_SIZE + 8,
-    borderRadius: 1,
-    border: `1px dashed ${palette.addTileBorder}`,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    bgcolor: palette.addTileBg,
-    "&:hover": {
-      borderColor: palette.addTileHoverBorder,
-      bgcolor: palette.addTileHoverBg,
-    },
-  }}
->
-                          <CloudUpload
-                            sx={{
-                              fontSize: Math.max(
-                                10,
-                                tokens.dropIconSize - 6,
-                              ),
-                              color: palette.addTileIcon,
-                            }}
-                          />
-                        </Box>
-                      </motion.div>
-                    )}
-                </Box>
-                {showCompressionInfo &&
-                  !uploading &&
-                  previews.length > 0 && (
-                    <Fade in={true}>
-                      <Box
-                        sx={{
-                          mt: 1,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 0.5,
-                        }}
-                      >
-                        <CheckCircle
-                          sx={{ fontSize: 10, color: palette.successColor }}
-                        />
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: palette.successColor,
-                            fontSize: "0.6rem",
-                          }}
-                        >
-                          Optimized (&lt;{targetSizeKB}KB)
-                        </Typography>
-                      </Box>
-                    </Fade>
-                  )}
-              </Box>
-            </Grow>
-          )}
-        </Paper>
+          <FormHelperText sx={{ mx: 1.5, mt: 0.5 }}>
+            {errorMessage || " "}
+          </FormHelperText>
+        </FormControl>
 
         <input
           ref={fileInputRef}
@@ -1625,32 +1423,15 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
           disabled={disabled}
           style={{ display: "none" }}
         />
-        {errorMessage && (
-          <Typography
-            variant="caption"
-            sx={{
-              display: "block",
-              mt: 0.5,
-              ml: 1,
-              color: "error.main",
-              fontSize: "0.65rem",
-            }}
-          >
-            {errorMessage}
-          </Typography>
-        )}
       </Box>
 
-      {/* ───────────────── LIGHTBOX ───────────────── */}
+      {/* ───────── LIGHTBOX ───────── */}
       <AnimatePresence>
         {enlargedImage && (
           <Box
             sx={{
               position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
+              inset: 0,
               bgcolor: palette.lightboxBg,
               zIndex: 9999,
               display: "flex",
@@ -1675,10 +1456,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
                   maxHeight: "90vh",
                   objectFit: "contain",
                   borderRadius: 2,
-                  boxShadow: `0 20px 40px ${alpha(
-                    theme.palette.common.black,
-                    0.3,
-                  )}`,
+                  boxShadow: `0 20px 40px ${alpha(theme.palette.common.black, 0.3)}`,
                 }}
               />
               <Tooltip title="Close" arrow>
@@ -1695,12 +1473,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
                     boxShadow: 2,
                   }}
                 >
-                  <CloseIcon
-                    sx={{
-                      fontSize: 18,
-                      color: palette.lightboxCloseIcon,
-                    }}
-                  />
+                  <CloseIcon sx={{ fontSize: 18, color: palette.lightboxCloseIcon }} />
                 </IconButton>
               </Tooltip>
             </motion.div>
@@ -1708,7 +1481,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
         )}
       </AnimatePresence>
 
-      {/* ───────────────── CROP DIALOG ───────────────── */}
+      {/* ───────── CROP DIALOG ───────── */}
       <Dialog
         open={cropDialogOpen}
         onClose={resetCropDialogState}
@@ -1718,7 +1491,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
           paper: {
             sx: {
               borderRadius: { xs: 0, sm: 4 },
-              bgcolor: palette.cropCanvasBg,
+              bgcolor: "#000",
               width: "100%",
               height: { xs: "100%", sm: "auto" },
               maxWidth: { xs: "100vw", sm: "90vw" },
@@ -1743,11 +1516,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
           <Crop sx={{ color: palette.cropAccent, fontSize: 26 }} />
           <Typography
             variant="h6"
-            sx={{
-              fontWeight: 600,
-              fontSize: { xs: "1rem", sm: "1.25rem" },
-              color: palette.dialogTitle,
-            }}
+            sx={{ fontWeight: 600, fontSize: { xs: "1rem", sm: "1.25rem" }, color: palette.dialogTitle }}
           >
             Crop Image
           </Typography>
@@ -1764,10 +1533,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
           <IconButton
             onClick={resetCropDialogState}
             size="small"
-            sx={{
-              color: palette.dialogText,
-              display: { xs: "flex", sm: "none" },
-            }}
+            sx={{ color: palette.dialogText, display: { xs: "flex", sm: "none" } }}
           >
             <CloseIcon fontSize="small" />
           </IconButton>
@@ -1857,8 +1623,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
                         left: cropBox.x,
                         top: cropBox.y + cropBox.height,
                         width: cropBox.width,
-                        height:
-                          renderedSize.h - (cropBox.y + cropBox.height),
+                        height: renderedSize.h - (cropBox.y + cropBox.height),
                         bgcolor: "rgba(0,0,0,0.6)",
                         pointerEvents: "none",
                       }}
@@ -1891,121 +1656,19 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
                         }}
                       >
                         {Array.from({ length: 9 }).map((_, i) => (
-                          <Box
-                            key={i}
-                            sx={{
-                              border: "1px solid rgba(255,255,255,0.35)",
-                            }}
-                          />
+                          <Box key={i} sx={{ border: "1px solid rgba(255,255,255,0.35)" }} />
                         ))}
                       </Box>
                     </Box>
 
-                    {renderHandle(
-                      "n",
-                      {
-                        left: cropBox.x + cropBox.width / 2 - 16,
-                        top: cropBox.y - 6,
-                        width: 32,
-                        height: 12,
-                        borderRadius: 4,
-                        backgroundColor: palette.cropAccent,
-                        border: "2px solid #fff",
-                      },
-                      "ns-resize",
-                    )}
-                    {renderHandle(
-                      "s",
-                      {
-                        left: cropBox.x + cropBox.width / 2 - 16,
-                        top: cropBox.y + cropBox.height - 6,
-                        width: 32,
-                        height: 12,
-                        borderRadius: 4,
-                        backgroundColor: palette.cropAccent,
-                        border: "2px solid #fff",
-                      },
-                      "ns-resize",
-                    )}
-                    {renderHandle(
-                      "e",
-                      {
-                        left: cropBox.x + cropBox.width - 6,
-                        top: cropBox.y + cropBox.height / 2 - 16,
-                        width: 12,
-                        height: 32,
-                        borderRadius: 4,
-                        backgroundColor: palette.cropAccent,
-                        border: "2px solid #fff",
-                      },
-                      "ew-resize",
-                    )}
-                    {renderHandle(
-                      "w",
-                      {
-                        left: cropBox.x - 6,
-                        top: cropBox.y + cropBox.height / 2 - 16,
-                        width: 12,
-                        height: 32,
-                        borderRadius: 4,
-                        backgroundColor: palette.cropAccent,
-                        border: "2px solid #fff",
-                      },
-                      "ew-resize",
-                    )}
-
-                    {renderHandle(
-                      "nw",
-                      {
-                        left: cropBox.x - 10,
-                        top: cropBox.y - 10,
-                        width: 20,
-                        height: 20,
-                        borderRadius: "50%",
-                        backgroundColor: palette.cropAccent,
-                        border: "2px solid #fff",
-                      },
-                      "nwse-resize",
-                    )}
-                    {renderHandle(
-                      "ne",
-                      {
-                        left: cropBox.x + cropBox.width - 10,
-                        top: cropBox.y - 10,
-                        width: 20,
-                        height: 20,
-                        borderRadius: "50%",
-                        backgroundColor: palette.cropAccent,
-                        border: "2px solid #fff",
-                      },
-                      "nesw-resize",
-                    )}
-                    {renderHandle(
-                      "sw",
-                      {
-                        left: cropBox.x - 10,
-                        top: cropBox.y + cropBox.height - 10,
-                        width: 20,
-                        height: 20,
-                        borderRadius: "50%",
-                        backgroundColor: palette.cropAccent,
-                        border: "2px solid #fff",
-                      },
-                      "nesw-resize",
-                    )}
-                    {renderHandle(
-                      "se",
-                      {
-                        left: cropBox.x + cropBox.width - 10,
-                        top: cropBox.y + cropBox.height - 10,
-                        width: 20,
-                        height: 20,
-                        borderRadius: "50%",
-                        backgroundColor: palette.cropAccent,
-                        border: "2px solid #fff",
-                      },
-                      "nwse-resize",
-                    )}
+                    {renderHandle("n", { left: cropBox.x + cropBox.width / 2 - 16, top: cropBox.y - 6, width: 32, height: 12, borderRadius: 4, backgroundColor: palette.cropAccent, border: "2px solid #fff" }, "ns-resize")}
+                    {renderHandle("s", { left: cropBox.x + cropBox.width / 2 - 16, top: cropBox.y + cropBox.height - 6, width: 32, height: 12, borderRadius: 4, backgroundColor: palette.cropAccent, border: "2px solid #fff" }, "ns-resize")}
+                    {renderHandle("e", { left: cropBox.x + cropBox.width - 6, top: cropBox.y + cropBox.height / 2 - 16, width: 12, height: 32, borderRadius: 4, backgroundColor: palette.cropAccent, border: "2px solid #fff" }, "ew-resize")}
+                    {renderHandle("w", { left: cropBox.x - 6, top: cropBox.y + cropBox.height / 2 - 16, width: 12, height: 32, borderRadius: 4, backgroundColor: palette.cropAccent, border: "2px solid #fff" }, "ew-resize")}
+                    {renderHandle("nw", { left: cropBox.x - 10, top: cropBox.y - 10, width: 20, height: 20, borderRadius: "50%", backgroundColor: palette.cropAccent, border: "2px solid #fff" }, "nwse-resize")}
+                    {renderHandle("ne", { left: cropBox.x + cropBox.width - 10, top: cropBox.y - 10, width: 20, height: 20, borderRadius: "50%", backgroundColor: palette.cropAccent, border: "2px solid #fff" }, "nesw-resize")}
+                    {renderHandle("sw", { left: cropBox.x - 10, top: cropBox.y + cropBox.height - 10, width: 20, height: 20, borderRadius: "50%", backgroundColor: palette.cropAccent, border: "2px solid #fff" }, "nesw-resize")}
+                    {renderHandle("se", { left: cropBox.x + cropBox.width - 10, top: cropBox.y + cropBox.height - 10, width: 20, height: 20, borderRadius: "50%", backgroundColor: palette.cropAccent, border: "2px solid #fff" }, "nwse-resize")}
                   </>
                 )}
               </Box>
@@ -2040,13 +1703,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
           <Button
             onClick={handleSkipCrop}
             variant="text"
-            sx={{
-              borderRadius: 2,
-              textTransform: "none",
-              px: 3,
-              py: 1,
-              color: palette.dialogText,
-            }}
+            sx={{ borderRadius: 2, textTransform: "none", px: 3, py: 1, color: palette.dialogText }}
           >
             Skip Crop
           </Button>
@@ -2085,7 +1742,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
         </DialogActions>
       </Dialog>
 
-      {/* ───────────────── CAMERA DIALOG ───────────────── */}
+      {/* ───────── CAMERA DIALOG ───────── */}
       <Dialog
         open={cameraOpen}
         onClose={handleCloseCamera}
@@ -2095,7 +1752,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
           paper: {
             sx: {
               borderRadius: { xs: 0, sm: 4 },
-              bgcolor: palette.cameraCanvasBg,
+              bgcolor: "#000",
               width: "100%",
               height: { xs: "100%", sm: "auto" },
               maxWidth: { xs: "100vw", sm: "600px" },
@@ -2120,11 +1777,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
           <CameraAlt sx={{ color: palette.cropAccent, fontSize: 26 }} />
           <Typography
             variant="h6"
-            sx={{
-              fontWeight: 600,
-              fontSize: { xs: "1rem", sm: "1.25rem" },
-              color: palette.dialogTitle,
-            }}
+            sx={{ fontWeight: 600, fontSize: { xs: "1rem", sm: "1.25rem" }, color: palette.dialogTitle }}
           >
             Take Photo
           </Typography>
@@ -2180,16 +1833,12 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
                 top: 12,
                 right: 12,
                 bgcolor: alpha(theme.palette.common.white, 0.9),
-                "&:hover": {
-                  bgcolor: theme.palette.common.white,
-                },
+                "&:hover": { bgcolor: theme.palette.common.white },
               }}
             >
               <FlipCameraIos
                 sx={{
-                  color: isDark
-                    ? theme.palette.common.black
-                    : theme.palette.text.primary,
+                  color: isDark ? theme.palette.common.black : theme.palette.text.primary,
                 }}
               />
             </IconButton>

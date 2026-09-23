@@ -168,7 +168,6 @@
   *:not(.MuiDivider-root):not(.MuiDivider-root *) {
     border-color: var(--color-border);
   }
-}
 
   body {
     background-color: var(--color-background);
@@ -254,10 +253,6 @@
 
 .clickable-cell-text {
   display: inline;
-}
-
-.numeric {
-  font-variant-numeric: tabular-nums;
 }
 
 .dark .MuiPaper-root {
