@@ -1,4 +1,3 @@
-/** Domain model for the BizUno business workspace. */
 
 export type ID = string;
 
