@@ -5,8 +5,6 @@ import {
   IconButton, MenuItem, Paper, Stack, TextField, ToggleButton, ToggleButtonGroup,
   Tooltip, Typography,
 } from '@mui/material';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -22,6 +20,8 @@ import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import TabletMacIcon from '@mui/icons-material/TabletMac';
 import LaptopMacIcon from '@mui/icons-material/LaptopMac';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import NotesIcon from '@mui/icons-material/Notes';
 import EmailIcon from '@mui/icons-material/Email';
@@ -54,8 +54,11 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { FormProvider, useForm } from 'react-hook-form';
 
+import { ColorFieldUncontrolled } from '@/components/MUI/ColorPicker';
 import {
   DEFAULT_RESPONSIVE_LAYOUT,
+  DEFAULT_SCREEN_COLORS_LIGHT,
+  DEFAULT_SCREEN_COLORS_DARK,
   DEFAULT_SCREEN_STYLE,
   FieldRenderer,
   OPTIONS_EXAMPLES,
@@ -76,6 +79,7 @@ import {
   type FieldType,
   type FieldVariant,
   type FormConfig,
+  type FormScreenColors,
   type FormScreenStyle,
 } from '@/utils/FormEngine';
 import {
@@ -108,6 +112,27 @@ const FIELD_ICON_MAP: Record<FieldType, SvgIconComponent> = {
   divider: HorizontalRuleIcon,
 };
 
+const SDivider = ({ children }: { children?: React.ReactNode }) => (
+  <Divider
+    sx={(t) => ({
+      borderColor:
+        t.palette.mode === 'dark'
+          ? 'rgba(255, 255, 255, 0.12)'
+          : 'rgba(15, 23, 42, 0.22)',
+      color: 'text.secondary',
+      '&::before, &::after': {
+        borderColor:
+          t.palette.mode === 'dark'
+            ? 'rgba(255, 255, 255, 0.12)'
+            : 'rgba(15, 23, 42, 0.22)',
+      },
+      '& .MuiDivider-wrapper': { color: 'text.secondary' },
+    })}
+  >
+    {children}
+  </Divider>
+);
+
 const getFieldIcon = (type: FieldType): SvgIconComponent =>
   FIELD_ICON_MAP[type] ?? TextFieldsIcon;
 
@@ -133,6 +158,7 @@ const COL_LABELS: { value: ColSpan; label: string }[] = [
 ];
 
 type BuilderTab = 'fields' | 'responsive' | 'appearance';
+type ColorMode = 'light' | 'dark';
 
 const TAB_META: { value: BuilderTab; label: string; icon: SvgIconComponent }[] = [
   { value: 'fields', label: 'Fields', icon: DashboardCustomizeIcon },
@@ -231,6 +257,82 @@ const PreviewField: FC<{ field: FieldConfig }> = ({ field }) => {
     <FormProvider {...methods}>
       <FieldRenderer field={field} previewMode />
     </FormProvider>
+  );
+};
+
+/* ============================================================
+ *  SUBMIT BUTTON PREVIEW — top-level so ResponsiveDesigner can use it
+ * ============================================================ */
+
+interface SubmitFieldPreviewProps {
+  screen: FormScreenStyle;
+  colorMode: ColorMode;
+}
+
+const SubmitFieldPreview: FC<SubmitFieldPreviewProps> = ({ screen, colorMode }) => {
+  const modeColors =
+    (colorMode === 'dark' ? screen.colors?.dark : screen.colors?.light) ?? {};
+
+  const bg = modeColors.submitBgColor || (colorMode === 'dark' ? '#3b82f6' : '#2563eb');
+  const fg = modeColors.submitTextColor || '#ffffff';
+  const label = screen.submitLabel || 'Submit';
+
+  return (
+    <Box
+      sx={{
+        gridColumn: { xs: 'span 12', sm: 'span 12' },
+        position: 'relative',
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+        p: 1.5,
+        minWidth: 0,
+      }}
+    >
+      <Stack
+        direction="row"
+        spacing={0.5}
+        sx={{
+          position: 'absolute',
+          top: 6,
+          left: 6,
+          alignItems: 'center',
+          bgcolor: 'background.paper',
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 1,
+          px: 0.75,
+          py: 0.25,
+          zIndex: 2,
+        }}
+      >
+        <SaveIcon fontSize="inherit" sx={{ fontSize: 16, color: 'primary.main' }} />
+        <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 11 }}>
+          Submit button
+        </Typography>
+      </Stack>
+
+      <Box sx={{ pt: 5 }}>
+        <Button
+          fullWidth
+          disableElevation
+          sx={{
+            bgcolor: bg,
+            color: fg,
+            textTransform: 'none',
+            fontWeight: 600,
+            borderRadius: 2,
+            py: 1.25,
+            boxShadow: 'none',
+            pointerEvents: 'none',
+            '&:hover': { boxShadow: 'none' },
+          }}
+        >
+          {label}
+        </Button>
+      </Box>
+    </Box>
   );
 };
 
@@ -342,12 +444,23 @@ const SortableField: FC<SortableFieldProps> = ({
   );
 };
 
+/* ============================================================
+ *  RESPONSIVE DESIGNER
+ * ============================================================ */
+
 interface ResponsiveDesignerProps {
   fields: FieldConfig[];
+  screen: FormScreenStyle;
+  colorMode: ColorMode;
   onSave: (next: FieldConfig[]) => void;
 }
 
-const ResponsiveDesigner: FC<ResponsiveDesignerProps> = ({ fields, onSave }) => {
+const ResponsiveDesigner: FC<ResponsiveDesignerProps> = ({
+  fields,
+  onSave,
+  colorMode,
+  screen,
+}) => {
   const [breakpoint, setBreakpoint] = useState<Breakpoint>('desktop');
   const [draft, setDraft] = useState<FieldConfig[]>(fields);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -519,6 +632,7 @@ const ResponsiveDesigner: FC<ResponsiveDesignerProps> = ({ fields, onSave }) => 
                   />
                 );
               })}
+              <SubmitFieldPreview screen={screen} colorMode={colorMode} />
             </Box>
           </SortableContext>
         </DndContext>
@@ -574,6 +688,41 @@ const ResponsiveDesigner: FC<ResponsiveDesignerProps> = ({ fields, onSave }) => 
                           </Box>
                         );
                       })}
+
+                      <Box
+                        sx={{
+                          gridColumn: 'span 12',
+                          mt: 1,
+                          pt: 1.5,
+                          borderTop: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      >
+                        <Button
+                          fullWidth
+                          disableElevation
+                          sx={{
+                            bgcolor:
+                              (colorMode === 'dark'
+                                ? screen.colors?.dark?.submitBgColor
+                                : screen.colors?.light?.submitBgColor) ||
+                              (colorMode === 'dark' ? '#3b82f6' : '#2563eb'),
+                            color:
+                              (colorMode === 'dark'
+                                ? screen.colors?.dark?.submitTextColor
+                                : screen.colors?.light?.submitTextColor) || '#ffffff',
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            py: 1.25,
+                            boxShadow: 'none',
+                            pointerEvents: 'none',
+                            fontSize: bp === 'mobile' ? 13 : 14,
+                          }}
+                        >
+                          {screen.submitLabel || 'Submit'}
+                        </Button>
+                      </Box>
                     </Box>
                   </Box>
                 </Box>
@@ -589,15 +738,18 @@ const ResponsiveDesigner: FC<ResponsiveDesignerProps> = ({ fields, onSave }) => 
   );
 };
 
+/* ============================================================
+ *  FORM BUILDER
+ * ============================================================ */
+
 const FormBuilder: FC = () => {
   const [config, setConfig] = useState<FormConfig>({ fields: [] });
   const [tab, setTab] = useState<BuilderTab>('fields');
+  const [colorMode, setColorMode] = useState<ColorMode>('light');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [step, setStep] = useState<'pick' | 'config'>('pick');
-  const [arrangeOpen, setArrangeOpen] = useState(false);
   const [draft, setDraft] = useState<FieldDraft>(EMPTY_DRAFT);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [arrangeList, setArrangeList] = useState<FieldConfig[]>([]);
   const [error, setError] = useState('');
   const [screenDraft, setScreenDraft] = useState<FormScreenStyle>(DEFAULT_SCREEN_STYLE);
   const [screenDirty, setScreenDirty] = useState(false);
@@ -617,6 +769,51 @@ const FormBuilder: FC = () => {
     () => orderedFields.filter((f) => !f.calculation.enabled && f.name !== draft.name),
     [orderedFields, draft.name],
   );
+
+  const currentColors: FormScreenColors = useMemo(() => {
+    const set =
+      colorMode === 'dark' ? screenDraft.colors?.dark : screenDraft.colors?.light;
+    const defaults =
+      colorMode === 'dark' ? DEFAULT_SCREEN_COLORS_DARK : DEFAULT_SCREEN_COLORS_LIGHT;
+
+    return {
+      pageBgColor: set?.pageBgColor || defaults.pageBgColor,
+      cardBgColor: set?.cardBgColor || defaults.cardBgColor,
+      titleColor: set?.titleColor || defaults.titleColor,
+      subtitleColor: set?.subtitleColor || defaults.subtitleColor,
+      submitBgColor: set?.submitBgColor || defaults.submitBgColor,
+      submitTextColor: set?.submitTextColor || defaults.submitTextColor,
+    };
+  }, [screenDraft, colorMode]);
+
+  const setCurrentColor = (key: keyof FormScreenColors, value: string) => {
+    setScreenDraft((s) => ({
+      ...s,
+      colors: {
+        light: s.colors?.light ?? DEFAULT_SCREEN_COLORS_LIGHT,
+        dark: s.colors?.dark ?? DEFAULT_SCREEN_COLORS_DARK,
+        [colorMode]: {
+          ...(s.colors?.[colorMode] ??
+            (colorMode === 'dark' ? DEFAULT_SCREEN_COLORS_DARK : DEFAULT_SCREEN_COLORS_LIGHT)),
+          [key]: value,
+        },
+      },
+    }));
+    setScreenDirty(true);
+  };
+
+  const resetCurrentMode = () => {
+    setScreenDraft((s) => ({
+      ...s,
+      colors: {
+        light: s.colors?.light ?? DEFAULT_SCREEN_COLORS_LIGHT,
+        dark: s.colors?.dark ?? DEFAULT_SCREEN_COLORS_DARK,
+        [colorMode]:
+          colorMode === 'dark' ? DEFAULT_SCREEN_COLORS_DARK : DEFAULT_SCREEN_COLORS_LIGHT,
+      },
+    }));
+    setScreenDirty(true);
+  };
 
   const persist = (next: FormConfig) => {
     setConfig(next);
@@ -761,27 +958,7 @@ const FormBuilder: FC = () => {
       : { ...config, fields: [...config.fields, built] };
     persist(next);
     setDialogOpen(false);
-    const wasEdit = Boolean(editingId);
     resetDraft();
-    if (!wasEdit) {
-      setArrangeList([...next.fields].sort((a, b) => a.order - b.order));
-      setArrangeOpen(true);
-    }
-  };
-
-  const moveArrange = (index: number, dir: -1 | 1) => {
-    const target = index + dir;
-    if (target < 0 || target >= arrangeList.length) return;
-    const copy = [...arrangeList];
-    const [removed] = copy.splice(index, 1);
-    if (!removed) return;
-    copy.splice(target, 0, removed);
-    setArrangeList(copy);
-  };
-
-  const handleConfirmArrange = () => {
-    persist({ ...config, fields: arrangeList.map((f, i) => ({ ...f, order: i })) });
-    setArrangeOpen(false);
   };
 
   const handleDeleteField = (id: string) => {
@@ -1055,6 +1232,8 @@ const FormBuilder: FC = () => {
         {tab === 'responsive' && (
           <ResponsiveDesigner
             fields={orderedFields}
+            screen={screenDraft}
+            colorMode={colorMode}
             onSave={(next) => persist({ ...config, fields: next })}
           />
         )}
@@ -1099,29 +1278,72 @@ const FormBuilder: FC = () => {
                 </Stack>
               </Stack>
 
+              <Box
+                sx={{
+                  mb: 2.5,
+                  p: 0.5,
+                  borderRadius: 2,
+                  bgcolor: 'action.hover',
+                  display: 'inline-flex',
+                  gap: 0.5,
+                }}
+              >
+                {(['light', 'dark'] as ColorMode[]).map((mode) => {
+                  const active = colorMode === mode;
+                  return (
+                    <Button
+                      key={mode}
+                      size="small"
+                      onClick={() => setColorMode(mode)}
+                      startIcon={
+                        mode === 'light' ? <LightModeIcon /> : <DarkModeIcon />
+                      }
+                      disableElevation
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        borderRadius: 1.5,
+                        px: 2.5,
+                        minWidth: 130,
+                        bgcolor: active ? 'background.paper' : 'transparent',
+                        color: active ? 'text.primary' : 'text.secondary',
+                        boxShadow: active ? 1 : 0,
+                        '&:hover': {
+                          bgcolor: active ? 'background.paper' : 'action.selected',
+                        },
+                      }}
+                    >
+                      {mode === 'light' ? 'Light mode' : 'Dark mode'}
+                    </Button>
+                  );
+                })}
+              </Box>
+
+              <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+                You are editing the{' '}
+                <strong>{colorMode === 'dark' ? 'Dark' : 'Light'} mode</strong> colours.
+                These apply when the public site is in {colorMode} mode.
+              </Alert>
+
               <Stack spacing={2}>
-                <Divider>Page</Divider>
+                <SDivider>Page</SDivider>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                  <TextField
-                    label="Page background colour"
-                    fullWidth
-                    value={screenDraft.pageBgColor ?? ''}
-                    placeholder="#f8fafc"
-                    onChange={(e) => {
-                      setScreenDraft((s) => ({ ...s, pageBgColor: e.target.value }));
-                      setScreenDirty(true);
-                    }}
-                  />
-                  <TextField
-                    label="Card background colour"
-                    fullWidth
-                    value={screenDraft.cardBgColor ?? ''}
-                    placeholder="#ffffff"
-                    onChange={(e) => {
-                      setScreenDraft((s) => ({ ...s, cardBgColor: e.target.value }));
-                      setScreenDirty(true);
-                    }}
-                  />
+                  <Box sx={{ flex: 1 }}>
+                    <ColorFieldUncontrolled
+                      label="Page background colour"
+                      value={currentColors.pageBgColor ?? ''}
+                      placeholder={colorMode === 'dark' ? '#0f172a' : '#f8fafc'}
+                      onChange={(value) => setCurrentColor('pageBgColor', value)}
+                    />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <ColorFieldUncontrolled
+                      label="Card background colour"
+                      value={currentColors.cardBgColor ?? ''}
+                      placeholder={colorMode === 'dark' ? '#111827' : '#ffffff'}
+                      onChange={(value) => setCurrentColor('cardBgColor', value)}
+                    />
+                  </Box>
                 </Stack>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <TextField
@@ -1160,7 +1382,8 @@ const FormBuilder: FC = () => {
                     }}
                   />
                 </Stack>
-                <Divider>Text</Divider>
+
+                <SDivider>Text</SDivider>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <TextField
                     label="Title"
@@ -1171,16 +1394,14 @@ const FormBuilder: FC = () => {
                       setScreenDirty(true);
                     }}
                   />
-                  <TextField
-                    label="Title colour"
-                    fullWidth
-                    value={screenDraft.titleColor ?? ''}
-                    placeholder="#0f172a"
-                    onChange={(e) => {
-                      setScreenDraft((s) => ({ ...s, titleColor: e.target.value }));
-                      setScreenDirty(true);
-                    }}
-                  />
+                  <Box sx={{ flex: 1 }}>
+                    <ColorFieldUncontrolled
+                      label="Title colour"
+                      value={currentColors.titleColor ?? ''}
+                      placeholder={colorMode === 'dark' ? '#f8fafc' : '#0f172a'}
+                      onChange={(value) => setCurrentColor('titleColor', value)}
+                    />
+                  </Box>
                 </Stack>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <TextField
@@ -1192,18 +1413,17 @@ const FormBuilder: FC = () => {
                       setScreenDirty(true);
                     }}
                   />
-                  <TextField
-                    label="Subtitle colour"
-                    fullWidth
-                    value={screenDraft.subtitleColor ?? ''}
-                    placeholder="#64748b"
-                    onChange={(e) => {
-                      setScreenDraft((s) => ({ ...s, subtitleColor: e.target.value }));
-                      setScreenDirty(true);
-                    }}
-                  />
+                  <Box sx={{ flex: 1 }}>
+                    <ColorFieldUncontrolled
+                      label="Subtitle colour"
+                      value={currentColors.subtitleColor ?? ''}
+                      placeholder={colorMode === 'dark' ? '#94a3b8' : '#64748b'}
+                      onChange={(value) => setCurrentColor('subtitleColor', value)}
+                    />
+                  </Box>
                 </Stack>
-                <Divider>Spacing</Divider>
+
+                <SDivider>Spacing</SDivider>
                 <TextField
                   label="Gap between fields (px)"
                   type="number"
@@ -1215,7 +1435,8 @@ const FormBuilder: FC = () => {
                     setScreenDirty(true);
                   }}
                 />
-                <Divider>Buttons</Divider>
+
+                <SDivider>Buttons</SDivider>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <TextField
                     label="Submit button label"
@@ -1226,27 +1447,35 @@ const FormBuilder: FC = () => {
                       setScreenDirty(true);
                     }}
                   />
-                  <TextField
-                    label="Submit button colour"
-                    fullWidth
-                    value={screenDraft.submitBgColor ?? ''}
-                    placeholder="#1976d2"
-                    onChange={(e) => {
-                      setScreenDraft((s) => ({ ...s, submitBgColor: e.target.value }));
-                      setScreenDirty(true);
-                    }}
-                  />
-                  <TextField
-                    label="Submit text colour"
-                    fullWidth
-                    value={screenDraft.submitTextColor ?? ''}
-                    placeholder="#ffffff"
-                    onChange={(e) => {
-                      setScreenDraft((s) => ({ ...s, submitTextColor: e.target.value }));
-                      setScreenDirty(true);
-                    }}
-                  />
+                  <Box sx={{ flex: 1 }}>
+                    <ColorFieldUncontrolled
+                      label="Submit button colour"
+                      value={currentColors.submitBgColor ?? ''}
+                      placeholder={colorMode === 'dark' ? '#3b82f6' : '#2563eb'}
+                      onChange={(value) => setCurrentColor('submitBgColor', value)}
+                    />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <ColorFieldUncontrolled
+                      label="Submit text colour"
+                      value={currentColors.submitTextColor ?? ''}
+                      placeholder="#ffffff"
+                      onChange={(value) => setCurrentColor('submitTextColor', value)}
+                    />
+                  </Box>
                 </Stack>
+
+                <Box sx={{ display: 'flex', justifyContent: 'flex-start', pt: 1 }}>
+                  <Button
+                    variant="text"
+                    size="small"
+                    startIcon={<RestartAltIcon />}
+                    onClick={resetCurrentMode}
+                    sx={{ textTransform: 'none', fontWeight: 500 }}
+                  >
+                    Reset {colorMode} to recommended
+                  </Button>
+                </Box>
               </Stack>
             </CardContent>
           </Card>
@@ -1337,7 +1566,7 @@ const FormBuilder: FC = () => {
                   </Button>
                 )}
 
-                <Divider>Basic Information</Divider>
+                <SDivider>Basic Information</SDivider>
 
                 <TextField
                   label="Label *"
@@ -1401,7 +1630,7 @@ const FormBuilder: FC = () => {
 
                 {schema && schema.props.length > 0 && (
                   <>
-                    <Divider>{schema.component} options</Divider>
+                    <SDivider>{schema.component} options</SDivider>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
                       These options come from the reusable component.
                     </Typography>
@@ -1481,7 +1710,7 @@ const FormBuilder: FC = () => {
 
                 {usesOptions && (
                   <>
-                    <Divider>Options</Divider>
+                    <SDivider>Options</SDivider>
                     <TextField
                       label="List of options"
                       fullWidth
@@ -1503,7 +1732,7 @@ const FormBuilder: FC = () => {
 
                 {(draft.type === 'text' || draft.type === 'textarea' || draft.type === 'number') && (
                   <>
-                    <Divider>Validation</Divider>
+                    <SDivider>Validation</SDivider>
                     {draft.type === 'number' ? (
                       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                         <TextField
@@ -1544,7 +1773,7 @@ const FormBuilder: FC = () => {
 
                 {draft.type !== 'heading' && draft.type !== 'divider' && (
                   <>
-                    <Divider>Show this field only when…</Divider>
+                    <SDivider>Show this field only when…</SDivider>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                       <TextField
                         select
@@ -1590,7 +1819,7 @@ const FormBuilder: FC = () => {
 
                 {(draft.type === 'text' || draft.type === 'number' || draft.type === 'select') && (
                   <>
-                    <Divider>Calculate from other fields</Divider>
+                    <SDivider>Calculate from other fields</SDivider>
                     <FormControlLabel
                       control={
                         <Checkbox
@@ -1613,7 +1842,7 @@ const FormBuilder: FC = () => {
                   </>
                 )}
 
-                <Divider>Default width</Divider>
+                <SDivider>Default width</SDivider>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <TextField
                     select
@@ -1668,6 +1897,52 @@ const FormBuilder: FC = () => {
                     ))}
                   </TextField>
                 </Stack>
+
+                <SDivider>Appearance (optional)</SDivider>
+                <Stack spacing={2}>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                      gap: 2,
+                    }}
+                  >
+                    <ColorFieldUncontrolled
+                      label="Text colour"
+                      value={draft.textColor}
+                      placeholder="inherit"
+                      onChange={(value) => setDraft((d) => ({ ...d, textColor: value }))}
+                    />
+                    <ColorFieldUncontrolled
+                      label="Field background colour"
+                      value={draft.backgroundColor}
+                      placeholder="inherit"
+                      onChange={(value) => setDraft((d) => ({ ...d, backgroundColor: value }))}
+                    />
+                    <ColorFieldUncontrolled
+                      label="Border colour"
+                      value={draft.borderColor}
+                      placeholder="inherit"
+                      onChange={(value) => setDraft((d) => ({ ...d, borderColor: value }))}
+                    />
+                    <TextField
+                      label="Border radius (px)"
+                      type="number"
+                      fullWidth
+                      value={draft.borderRadius}
+                      onChange={(e) => setDraft((d) => ({ ...d, borderRadius: e.target.value }))}
+                      helperText="Rounded corners of the input box."
+                    />
+                    <TextField
+                      label="Font weight"
+                      type="number"
+                      fullWidth
+                      value={draft.fontWeight}
+                      onChange={(e) => setDraft((d) => ({ ...d, fontWeight: e.target.value }))}
+                      helperText="100 = thin, 400 = normal, 700 = bold."
+                    />
+                  </Box>
+                </Stack>
               </Stack>
 
               <Box sx={{ position: { md: 'sticky' }, top: { md: 16 }, alignSelf: 'start' }}>
@@ -1686,6 +1961,36 @@ const FormBuilder: FC = () => {
                     </Typography>
                   </Stack>
                   <PreviewField field={draftToFieldConfig(draft, editingId ?? 'preview')} />
+                  <Box
+                    sx={{
+                      mt: 1.5,
+                      pt: 1.5,
+                      borderTop: '1px solid',
+                      borderColor: (t) =>
+                        t.palette.mode === 'dark'
+                          ? 'rgba(255, 255, 255, 0.12)'
+                          : 'rgba(15, 23, 42, 0.12)',
+                    }}
+                  >
+                    <Button
+                      fullWidth
+                      size="small"
+                      disableElevation
+                      sx={{
+                        bgcolor: colorMode === 'dark' ? '#3b82f6' : '#2563eb',
+                        color: '#ffffff',
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        borderRadius: 2,
+                        py: 1,
+                        fontSize: 12,
+                        boxShadow: 'none',
+                        '&:hover': { boxShadow: 'none' },
+                      }}
+                    >
+                      {screenDraft.submitLabel || 'Submit'}
+                    </Button>
+                  </Box>
                 </Card>
               </Box>
             </Box>
@@ -1706,74 +2011,6 @@ const FormBuilder: FC = () => {
               {editingId ? 'Save Changes' : 'Set Field'}
             </Button>
           )}
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={arrangeOpen} onClose={() => setArrangeOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
-              <TuneIcon fontSize="small" />
-            </Avatar>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Arrange Field Sequence
-            </Typography>
-          </Stack>
-        </DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={1}>
-            {arrangeList.map((field, index) => {
-              const RowIcon = getFieldIcon(field.type);
-              return (
-                <Card key={field.id} variant="outlined" sx={{ borderRadius: 2 }}>
-                  <CardContent sx={{ py: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Avatar
-                      sx={{
-                        bgcolor: (t) => `${t.palette.primary.main}18`,
-                        color: 'primary.main',
-                        width: 32,
-                        height: 32,
-                      }}
-                    >
-                      <RowIcon fontSize="small" />
-                    </Avatar>
-                    <Typography sx={{ flex: 1 }} variant="body2">
-                      #{index + 1} · {field.label || `(${field.type})`}
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      disabled={index === 0}
-                      onClick={() => moveArrange(index, -1)}
-                      aria-label="Move up"
-                    >
-                      <ArrowUpwardIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      disabled={index === arrangeList.length - 1}
-                      onClick={() => moveArrange(index, 1)}
-                      aria-label="Move down"
-                    >
-                      <ArrowDownwardIcon fontSize="small" />
-                    </IconButton>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setArrangeOpen(false)} sx={{ textTransform: 'none' }}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={handleConfirmArrange}
-            sx={{ textTransform: 'none', fontWeight: 600 }}
-          >
-            Confirm Sequence
-          </Button>
         </DialogActions>
       </Dialog>
     </Box>
