@@ -21,6 +21,7 @@ import { Route as InventoryIndexRouteImport } from './routes/inventory.index'
 import { Route as LoginIndexRouteImport } from './routes/login.index'
 import { Route as PaymentsIndexRouteImport } from './routes/payments.index'
 import { Route as PlatformIndexRouteImport } from './routes/platform.index'
+import { Route as PlatformLoginRouteImport } from './routes/platform.login'
 import { Route as PlatformPackagesRouteImport } from './routes/platform.packages'
 import { Route as PlatformSettingsRouteImport } from './routes/platform.settings'
 import { Route as PlatformSubscriptionsRouteImport } from './routes/platform.subscriptions'
@@ -35,7 +36,6 @@ import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SuppliersIndexRouteImport } from './routes/suppliers.index'
 import { Route as UsersIndexRouteImport } from './routes/users.index'
 import { Route as WarehousesIndexRouteImport } from './routes/warehouses.index'
-import { Route as PlatformAdminLoginRouteImport } from './routes/platform.admin.login'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -95,6 +95,11 @@ const PaymentsIndexRoute = PaymentsIndexRouteImport.update({
 const PlatformIndexRoute = PlatformIndexRouteImport.update({
   id: '/platform/',
   path: '/platform/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformLoginRoute = PlatformLoginRouteImport.update({
+  id: '/platform/login',
+  path: '/platform/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformPackagesRoute = PlatformPackagesRouteImport.update({
@@ -167,11 +172,6 @@ const WarehousesIndexRoute = WarehousesIndexRouteImport.update({
   path: '/warehouses/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlatformAdminLoginRoute = PlatformAdminLoginRouteImport.update({
-  id: '/platform/admin/login',
-  path: '/platform/admin/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -180,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/landing': typeof LandingRoute
   '/website': typeof WebsiteRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/platform/login': typeof PlatformLoginRoute
   '/platform/packages': typeof PlatformPackagesRoute
   '/platform/settings': typeof PlatformSettingsRoute
   '/platform/subscriptions': typeof PlatformSubscriptionsRoute
@@ -200,7 +201,6 @@ export interface FileRoutesByFullPath {
   '/suppliers/': typeof SuppliersIndexRoute
   '/users/': typeof UsersIndexRoute
   '/warehouses/': typeof WarehousesIndexRoute
-  '/platform/admin/login': typeof PlatformAdminLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -209,6 +209,7 @@ export interface FileRoutesByTo {
   '/landing': typeof LandingRoute
   '/website': typeof WebsiteRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/platform/login': typeof PlatformLoginRoute
   '/platform/packages': typeof PlatformPackagesRoute
   '/platform/settings': typeof PlatformSettingsRoute
   '/platform/subscriptions': typeof PlatformSubscriptionsRoute
@@ -229,7 +230,6 @@ export interface FileRoutesByTo {
   '/suppliers': typeof SuppliersIndexRoute
   '/users': typeof UsersIndexRoute
   '/warehouses': typeof WarehousesIndexRoute
-  '/platform/admin/login': typeof PlatformAdminLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -239,6 +239,7 @@ export interface FileRoutesById {
   '/landing': typeof LandingRoute
   '/website': typeof WebsiteRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/platform/login': typeof PlatformLoginRoute
   '/platform/packages': typeof PlatformPackagesRoute
   '/platform/settings': typeof PlatformSettingsRoute
   '/platform/subscriptions': typeof PlatformSubscriptionsRoute
@@ -259,7 +260,6 @@ export interface FileRoutesById {
   '/suppliers/': typeof SuppliersIndexRoute
   '/users/': typeof UsersIndexRoute
   '/warehouses/': typeof WarehousesIndexRoute
-  '/platform/admin/login': typeof PlatformAdminLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -270,6 +270,7 @@ export interface FileRouteTypes {
     | '/landing'
     | '/website'
     | '/customers/$customerId'
+    | '/platform/login'
     | '/platform/packages'
     | '/platform/settings'
     | '/platform/subscriptions'
@@ -290,7 +291,6 @@ export interface FileRouteTypes {
     | '/suppliers/'
     | '/users/'
     | '/warehouses/'
-    | '/platform/admin/login'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -299,6 +299,7 @@ export interface FileRouteTypes {
     | '/landing'
     | '/website'
     | '/customers/$customerId'
+    | '/platform/login'
     | '/platform/packages'
     | '/platform/settings'
     | '/platform/subscriptions'
@@ -319,7 +320,6 @@ export interface FileRouteTypes {
     | '/suppliers'
     | '/users'
     | '/warehouses'
-    | '/platform/admin/login'
   id:
     | '__root__'
     | '/'
@@ -328,6 +328,7 @@ export interface FileRouteTypes {
     | '/landing'
     | '/website'
     | '/customers/$customerId'
+    | '/platform/login'
     | '/platform/packages'
     | '/platform/settings'
     | '/platform/subscriptions'
@@ -348,7 +349,6 @@ export interface FileRouteTypes {
     | '/suppliers/'
     | '/users/'
     | '/warehouses/'
-    | '/platform/admin/login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -358,6 +358,7 @@ export interface RootRouteChildren {
   LandingRoute: typeof LandingRoute
   WebsiteRoute: typeof WebsiteRoute
   CustomersCustomerIdRoute: typeof CustomersCustomerIdRoute
+  PlatformLoginRoute: typeof PlatformLoginRoute
   PlatformPackagesRoute: typeof PlatformPackagesRoute
   PlatformSettingsRoute: typeof PlatformSettingsRoute
   PlatformSubscriptionsRoute: typeof PlatformSubscriptionsRoute
@@ -378,7 +379,6 @@ export interface RootRouteChildren {
   SuppliersIndexRoute: typeof SuppliersIndexRoute
   UsersIndexRoute: typeof UsersIndexRoute
   WarehousesIndexRoute: typeof WarehousesIndexRoute
-  PlatformAdminLoginRoute: typeof PlatformAdminLoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -465,6 +465,13 @@ declare module '@tanstack/react-router' {
       path: '/platform'
       fullPath: '/platform/'
       preLoaderRoute: typeof PlatformIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/login': {
+      id: '/platform/login'
+      path: '/platform/login'
+      fullPath: '/platform/login'
+      preLoaderRoute: typeof PlatformLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/platform/packages': {
@@ -565,13 +572,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WarehousesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/platform/admin/login': {
-      id: '/platform/admin/login'
-      path: '/platform/admin/login'
-      fullPath: '/platform/admin/login'
-      preLoaderRoute: typeof PlatformAdminLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -582,6 +582,7 @@ const rootRouteChildren: RootRouteChildren = {
   LandingRoute: LandingRoute,
   WebsiteRoute: WebsiteRoute,
   CustomersCustomerIdRoute: CustomersCustomerIdRoute,
+  PlatformLoginRoute: PlatformLoginRoute,
   PlatformPackagesRoute: PlatformPackagesRoute,
   PlatformSettingsRoute: PlatformSettingsRoute,
   PlatformSubscriptionsRoute: PlatformSubscriptionsRoute,
@@ -602,7 +603,6 @@ const rootRouteChildren: RootRouteChildren = {
   SuppliersIndexRoute: SuppliersIndexRoute,
   UsersIndexRoute: UsersIndexRoute,
   WarehousesIndexRoute: WarehousesIndexRoute,
-  PlatformAdminLoginRoute: PlatformAdminLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

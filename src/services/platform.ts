@@ -84,3 +84,17 @@ export function updatePackage(id: string, input: Partial<Omit<SubscriptionPackag
     return subscriptionPackage;
   });
 }
+
+export function createPackage(input: Pick<SubscriptionPackage, "name" | "monthlyPrice" | "annualPrice" | "userLimit">): Promise<SubscriptionPackage> {
+  return request(() => {
+    const subscriptionPackage: SubscriptionPackage = {
+      ...input,
+      id: `pkg-${Date.now()}`,
+      features: [],
+      activeTenants: 0,
+      status: "active",
+    };
+    packages.unshift(subscriptionPackage);
+    return subscriptionPackage;
+  });
+}

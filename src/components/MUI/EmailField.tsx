@@ -1,7 +1,7 @@
 import { type FC } from 'react';
 import { TextField, type SxProps, type TextFieldProps, type Theme } from '@mui/material';
 import { useFormContext, Controller } from 'react-hook-form';
-import { emailRegex, emailDomainRegex, SanitizeEmailRegex } from '@/utils/RegexPattern';
+import { emailRegex, emailDomainRegex, SanitizeEmailRegex } from '@/constant/RegixPattern';
 import { getComponentTranslations } from '@/helpers/useTranslations';
 import { useTranslation } from 'react-i18next';
 
@@ -38,13 +38,14 @@ const EmailField: FC<EmailFieldProps> = ({ label, name, sx, required = false, ..
           {...field}
           {...rest}
           label={label}
+          size="small"
           inputMode="email"
           type="email"
           value={field.value || ''}
           fullWidth
           required={required}
           error={!!errors[name]}
-          helperText={String(errors[name]?.message || ' ')}
+          helperText={errors[name]?.message ? String(errors[name].message) : undefined}
           onChange={(e) => field.onChange(SanitizeEmailRegex(e.target.value))}
           sx={{ '& .MuiInputLabel-asterisk': { color: 'error.main' }, ...sx }}
         />
