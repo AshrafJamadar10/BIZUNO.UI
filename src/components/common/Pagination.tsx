@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MenuItem, TextField } from "@mui/material";
 
 const PAGE_SIZES = [5, 10, 20, 50];
 
@@ -20,8 +21,8 @@ export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChan
     <div className="flex flex-col gap-3 border-t p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-2">
         <span>Rows per page</span>
-        <select
-          className="h-8 rounded-md border bg-background px-2 text-foreground"
+        <TextField select size="small"
+          className="min-w-20"
           value={pageSize >= total && total > 0 ? "all" : String(pageSize)}
           onChange={(event) => {
             onPageSizeChange(event.target.value === "all" ? Math.max(total, 1) : Number(event.target.value));
@@ -29,9 +30,9 @@ export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChan
           }}
           aria-label="Rows per page"
         >
-          {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
-          <option value="all">All</option>
-        </select>
+          {PAGE_SIZES.map((size) => <MenuItem key={size} value={size}>{size}</MenuItem>)}
+          <MenuItem value="all">All</MenuItem>
+        </TextField>
         <span>{firstRecord}-{lastRecord} of {total}</span>
       </div>
       <div className="flex items-center gap-2">

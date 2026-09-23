@@ -1,7 +1,7 @@
 import { type FC } from 'react';
 import { TextField, type TextFieldProps, type SxProps, type Theme } from '@mui/material';
 import { Controller, useFormContext, type RegisterOptions } from 'react-hook-form';
-import { TextRegexPattern, removeEmojis, type InputType } from '@/utils/RegexPattern';
+import { TextRegexPattern, removeEmojis, type InputType } from '@/constant/RegixPattern';
 import { useTranslation } from 'react-i18next';
 import { getComponentTranslations } from '@/helpers/useTranslations';
 
@@ -77,7 +77,7 @@ const TextInputField: FC<TextInputFieldProps> = ({
       rules={combineRules}
       render={({ field }) => {
         const hasError = !!errors[name];
-        const helperText = hasError ? String(errors[name]?.message) : ' ';
+        const helperText = hasError ? String(errors[name]?.message) : undefined;
 
         return (
           <TextField
@@ -112,6 +112,12 @@ const TextInputField: FC<TextInputFieldProps> = ({
 }}
             sx={{
               '& .MuiInputLabel-asterisk': { color: 'error.main' },
+              '& .MuiOutlinedInput-root.Mui-focused': { backgroundColor: 'transparent' },
+              '& input:-webkit-autofill': {
+                WebkitBoxShadow: '0 0 0 100px transparent inset',
+                WebkitTextFillColor: 'inherit',
+                transition: 'background-color 5000s ease-in-out 0s'
+              },
               ...sx
             }}
           />

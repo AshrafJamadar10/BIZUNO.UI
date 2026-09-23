@@ -1,7 +1,7 @@
 import { type FC } from "react";
 import { TextField, type SxProps, type TextFieldProps, type Theme } from "@mui/material";
 import { useFormContext, Controller, type ValidationRule } from "react-hook-form";
-import { decimalRegex, numericRegex } from "@/utils/RegexPattern";
+import { decimalRegex, numericRegex } from "@/constant/RegixPattern";
 import { getComponentTranslations } from "@/helpers/useTranslations";
 import { useTranslation } from "react-i18next";
 
@@ -105,7 +105,7 @@ const NumericField: FC<NumericFieldProps> = ({
             field.onChange(sanitized);
           }}
           error={!!errors[name]}
-          helperText={typeof errors[name]?.message === "string" ? errors[name]?.message : " "}
+          helperText={typeof errors[name]?.message === "string" ? errors[name]?.message : undefined}
           slotProps={{
   ...rest.slotProps,
   inputLabel: {

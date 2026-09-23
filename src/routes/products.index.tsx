@@ -8,8 +8,7 @@ import { SearchInput } from "@/components/common/SearchInput";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { MenuItem, TextField } from "@mui/material";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCategories, useCreateProduct, useDeleteProduct, useProducts, useUpdateProduct } from "@/hooks/queries/products";
@@ -39,9 +38,9 @@ function ProductsPage() {
         <DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>{editingId ? "Edit product" : "Add product"}</DialogTitle></DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             {(["name", "sku", "barcode", "unit", "purchasePrice", "sellingPrice", "taxRate", "stock", "minStock"] as const).map((key) =>
-              <div key={key}><Label htmlFor={`product-${key}`}>{key.replace(/[A-Z]/g, (m) => ` ${m}`).replace(/^./, (m) => m.toUpperCase())}</Label><Input id={`product-${key}`} value={form[key]} onChange={(e) => set(key, e.target.value)} className="mt-1.5" type={["purchasePrice", "sellingPrice", "taxRate", "stock", "minStock"].includes(key) ? "number" : "text"} /></div>,
+              <div key={key}><TextField fullWidth size="small" label={key.replace(/[A-Z]/g, (m) => ` ${m}`).replace(/^./, (m) => m.toUpperCase())} id={`product-${key}`} value={form[key]} onChange={(e) => set(key, e.target.value)} type={["purchasePrice", "sellingPrice", "taxRate", "stock", "minStock"].includes(key) ? "number" : "text"} /></div>,
             )}
-            <div><Label>Category</Label><select className="mt-1.5 h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.categoryId} onChange={(e) => set("categoryId", e.target.value)}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
+            <div><TextField fullWidth size="small" select label="Category" value={form.categoryId} onChange={(e) => set("categoryId", e.target.value)}>{categories.map((category) => <MenuItem key={category.id} value={category.id}>{category.name}</MenuItem>)}</TextField></div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => { setOpen(false); setEditingId(null); }}>Cancel</Button><Button disabled={!form.name || !form.sku || create.isPending || update.isPending} onClick={() => { const input = { ...form, purchasePrice: Number(form.purchasePrice), sellingPrice: Number(form.sellingPrice), taxRate: Number(form.taxRate), stock: Number(form.stock), minStock: Number(form.minStock) }; const options = { onSuccess: () => { toast.success(editingId ? "Product updated" : "Product added"); setOpen(false); setEditingId(null); setForm(EMPTY); } }; if (editingId) update.mutate({ id: editingId, input }, options); else create.mutate(input, options); }}>{editingId ? "Save changes" : "Save product"}</Button></DialogFooter>
         </DialogContent>

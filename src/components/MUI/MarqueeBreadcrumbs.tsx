@@ -1,7 +1,6 @@
 import React from 'react';
 import Marquee from 'react-fast-marquee';
 import { Typography, Box } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
 
 interface MarqueeItem {
   text: string;
@@ -23,13 +22,11 @@ const MarqueeBreadcrumbs: React.FC<MarqueeBreadcrumbsProps> = ({
   speed = 60,
   onClick
 }) => {
-  const navigate = useNavigate();
-
   const normalizedItems = items.map((item) => (typeof item === 'string' ? { text: item } : item));
 
   const handleClick = (item: MarqueeItem) => {
     if (item.path) {
-      navigate(item.path);
+      window.location.assign(item.path);
     }
     if (onClick) {
       onClick(item);

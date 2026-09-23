@@ -1,6 +1,6 @@
 import { TextField, InputAdornment, type SxProps, type Theme, type TextFieldProps } from '@mui/material';
 import { Controller, useFormContext } from 'react-hook-form';
-import { mobileRegex, SanitizeMobileRegex } from '@/utils/RegexPattern';
+import { mobileRegex, SanitizeMobileRegex } from '@/constant/RegixPattern';
 import { useTranslation } from 'react-i18next';
 import { getComponentTranslations } from '@/helpers/useTranslations';
 
@@ -44,7 +44,7 @@ const MobileField: React.FC<MobileFieldProps> = ({ label, name,size='small', req
           label={label}
           value={field.value || ''}
           error={!!errors[name]}
-          helperText={String(errors[name]?.message || ' ')}
+          helperText={errors[name]?.message ? String(errors[name].message) : undefined}
           onChange={(e) => {
             const input = SanitizeMobileRegex(e.target.value);
             const digitsOnly = input.replace(/\D/g, '');

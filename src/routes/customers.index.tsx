@@ -475,12 +475,12 @@ function CustomersPage() {
       <Dialog
         open={open}
         onClose={handleCloseDialog}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
         slotProps={{
           paper: {
             sx: {
-              borderRadius: 3,
+              borderRadius: 2,
               bgcolor: palette.dialogBg,
               border: `1px solid ${palette.dialogBorder}`,
               backgroundImage: "none",
@@ -491,10 +491,11 @@ function CustomersPage() {
         <DialogTitle
           sx={{
             fontWeight: 700,
-            fontSize: 18,
+            fontSize: 20,
             color: palette.textPrimary,
-            borderBottom: `1px solid ${palette.dialogBorder}`,
-            pb: 1.5,
+            px: 3,
+            pt: 2.5,
+            pb: 0,
           }}
         >
           {editingId ? "Edit customer" : "Add customer"}
@@ -502,8 +503,8 @@ function CustomersPage() {
 
         <FormProvider {...methods}>
           <form onSubmit={submitForm} noValidate>
-            <DialogContent sx={{ pt: 2.5 }}>
-              <Grid container spacing={2}>
+            <DialogContent sx={{ px: 3, pt: 2.5, pb: 2 }}>
+              <Grid container rowSpacing={2} columnSpacing={2}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextInputField
                     name="name"
@@ -572,8 +573,8 @@ function CustomersPage() {
 
             <DialogActions
               sx={{
-                p: 2,
-                borderTop: `1px solid ${palette.dialogBorder}`,
+                px: 3,
+                py: 2,
                 gap: 1,
               }}
             >
