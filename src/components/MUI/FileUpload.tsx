@@ -2,48 +2,48 @@
 /* eslint-disable react-hooks/preserve-manual-memoization */
 /* eslint-disable react-hooks/immutability */
 import React, {
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
-  useCallback,
-  useMemo,
 } from "react";
 import {
   Box,
-  IconButton,
-  Typography,
-  CircularProgress,
-  Paper,
-  Fade,
-  Tooltip,
-  type SxProps,
-  type Theme,
-  alpha,
-  Grow,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
+  FormHelperText,
+  IconButton,
+  InputLabel,
+  OutlinedInput,
+  Tooltip,
+  Typography,
+  alpha,
   useTheme,
+  type SxProps,
+  type Theme,
 } from "@mui/material";
 import {
-  Delete,
-  CloudUpload,
-  CheckCircle,
-  Description as DescriptionIcon,
-  PictureAsPdf,
-  InsertDriveFile,
-  TableChart,
-  Slideshow,
-  Close as CloseIcon,
   Check,
-  Visibility,
+  Close as CloseIcon,
+  CloudUpload,
+  Delete,
+  Description as DescriptionIcon,
   Download,
+  InsertDriveFile,
+  PictureAsPdf,
+  Slideshow,
+  TableChart,
+  Visibility,
 } from "@mui/icons-material";
+import { AnimatePresence, motion } from "framer-motion";
 import { useFormContext } from "react-hook-form";
 import { showSnackbar } from "../MUI/ToastMessage";
-import { motion, AnimatePresence } from "framer-motion";
 
 type UploadSize = "small" | "medium" | "large";
 
@@ -67,44 +67,44 @@ type FormValues = Record<string, unknown>;
 const SIZE_TOKENS: Record<
   UploadSize,
   {
-    rowPadding: number;
+    boxPadding: number;
     dropIconSize: number;
     dropFontSize: string;
     countFontSize: string;
     fileIconSize: number;
-    actionBtnSize: number;   // ← renamed from actionIconSize (clearer)
+    actionBtnSize: number;
     actionIconSize: number;
     gap: number;
   }
 > = {
   small: {
-    rowPadding: 1,
-    dropIconSize: 18,
-    dropFontSize: "0.7rem",
-    countFontSize: "0.6rem",
+    boxPadding: 1,
+    dropIconSize: 15,
+    dropFontSize: "0.65rem",
+    countFontSize: "0.55rem",
     fileIconSize: 22,
-    actionBtnSize: 26,       // ← was 32 fixed
-    actionIconSize: 14,      // ← was 18 fixed
+    actionBtnSize: 18,
+    actionIconSize: 11,
     gap: 0.75,
   },
   medium: {
-    rowPadding: 1.5,
-    dropIconSize: 22,
-    dropFontSize: "0.8rem",
-    countFontSize: "0.7rem",
+    boxPadding: 1.5,
+    dropIconSize: 18,
+    dropFontSize: "0.7rem",
+    countFontSize: "0.6rem",
     fileIconSize: 28,
-    actionBtnSize: 32,
-    actionIconSize: 16,
+    actionBtnSize: 22,
+    actionIconSize: 13,
     gap: 1,
   },
   large: {
-    rowPadding: 2,
-    dropIconSize: 28,
-    dropFontSize: "0.9rem",
-    countFontSize: "0.8rem",
+    boxPadding: 2,
+    dropIconSize: 22,
+    dropFontSize: "0.85rem",
+    countFontSize: "0.7rem",
     fileIconSize: 34,
-    actionBtnSize: 38,
-    actionIconSize: 18,
+    actionBtnSize: 30,
+    actionIconSize: 16,
     gap: 1.25,
   },
 };
@@ -168,9 +168,8 @@ const isImage = (file: File | string): boolean => {
   return /\.(png|jpe?g|webp|gif|svg)$/i.test(file);
 };
 
-const isPreviewable = (file: File | string): boolean => {
-  return isPDF(file) || isImage(file);
-};
+const isPreviewable = (file: File | string): boolean =>
+  isPDF(file) || isImage(file);
 
 const FileUpload: React.FC<FileUploadProps> = ({
   name,
@@ -186,11 +185,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
   maxSizeMB = 10,
   size = "small",
 }) => {
-  /* ────────────────────────────────────────────────────────── */
-  /*  THEME — with safe fallback for apps without dark mode     */
-  /* ────────────────────────────────────────────────────────── */
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const tokens = SIZE_TOKENS[size];
 
   const {
     setValue,
@@ -199,37 +196,35 @@ const FileUpload: React.FC<FileUploadProps> = ({
     formState: { errors },
   } = useFormContext<FormValues>();
 
-  const tokens = SIZE_TOKENS[size];
+  const formFiles = watch(name) as (File | string)[] | undefined;
+  const errorMessage = errors[name]?.message as string | undefined;
+  const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const formFiles = watch(name) as (File | string)[] | undefined;
+  const initialized = useRef(false);
 
   const [previews, setPreviews] = useState<
     { url: string; file: File | string }[]
   >([]);
-  const [uploading, setUploading] = useState<boolean>(false);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [deletedFiles, setDeletedFiles] = useState<string[]>([]);
-  const [dragActive, setDragActive] = useState<boolean>(false);
+  const [dragActive, setDragActive] = useState(false);
   const [previewFile, setPreviewFile] = useState<{
     url: string;
     file: File | string;
   } | null>(null);
 
-  const initialized = useRef(false);
-  const errorMessage = errors[name]?.message as string;
-  const maxSizeBytes = maxSizeMB * 1024 * 1024;
-
-  /* ────────────────────────────────────────────────────────── */
-  /*  PALETTE                                                   */
-  /* ────────────────────────────────────────────────────────── */
   const palette = useMemo(() => {
     const t = theme.palette;
     return {
-      containerBg: t.background.paper,
-      containerBorder: t.divider,
+      containerBorder: isDark
+        ? "rgba(255,255,255,0.18)"
+        : "rgba(15,23,42,0.28)",
+      containerBorderHover: isDark ? "#ffffff" : "#000000",
       containerBorderActive: t.primary.main,
       containerBorderError: t.error.main,
+      containerBg: t.background.paper,
       containerBgDrag: alpha(t.primary.main, isDark ? 0.06 : 0.03),
       containerBgDisabled: alpha(t.action.disabledBackground, 0.4),
 
@@ -243,8 +238,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
         ? alpha(t.common.white, 0.015)
         : alpha(t.common.black, 0.008),
       fileRowBg: isDark ? alpha(t.common.white, 0.02) : "#ffffff",
-      fileRowBorder: t.divider,
-      fileRowBorderHover: t.primary.main,
+      fileRowBorder: isDark
+        ? "rgba(255,255,255,0.18)"
+        : "rgba(15,23,42,0.22)",
+      fileRowBorderHover: isDark ? "#ffffff" : "#000000",
       fileRowShadowHover: isDark
         ? `0 2px 8px ${alpha(t.common.black, 0.4)}`
         : `0 2px 8px ${alpha(t.common.black, 0.08)}`,
@@ -257,8 +254,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       deleteBtnBg: alpha(t.error.main, 0.08),
       deleteBtnIcon: t.error.main,
-
-      successColor: t.success.main,
 
       dialogHeaderBg: t.background.paper,
       dialogBorder: t.divider,
@@ -273,90 +268,76 @@ const FileUpload: React.FC<FileUploadProps> = ({
     };
   }, [theme, isDark]);
 
-  const getSafeFilesArray = useCallback((): (File | string)[] => {
-    if (!formFiles) return [];
-    if (Array.isArray(formFiles)) return formFiles;
-    return [];
-  }, [formFiles]);
+  const getSafeFilesArray = useCallback(
+    (): (File | string)[] => (Array.isArray(formFiles) ? formFiles : []),
+    [formFiles],
+  );
 
-  const generatePreview = useCallback((file: string | File): string => {
-    if (file instanceof File) {
-      return URL.createObjectURL(file);
-    }
-    return file;
-  }, []);
+  const generatePreview = useCallback(
+    (file: string | File): string =>
+      file instanceof File ? URL.createObjectURL(file) : file,
+    [],
+  );
 
   useEffect(() => {
-    if (!defaultFiles || defaultFiles.length === 0) return;
     if (initialized.current) return;
-
+    if (!defaultFiles?.length) return;
     initialized.current = true;
-    setValue(name, defaultFiles, {
-      shouldValidate: false,
-      shouldDirty: false,
-    });
+    setValue(name, defaultFiles, { shouldValidate: false, shouldDirty: false });
   }, [defaultFiles, name, setValue]);
 
   useEffect(() => {
     const files = getSafeFilesArray();
-    if (!files || files.length === 0) {
+    if (!files.length) {
       setPreviews([]);
       return;
     }
 
     const items = files
-      .filter((file) => file)
-      .map((file) => ({
-        url: generatePreview(file),
-        file,
-      }));
+      .filter(Boolean)
+      .map((file) => ({ url: generatePreview(file), file }));
 
     setPreviews(items);
 
     return () => {
       items.forEach(({ url }) => {
-        if (url && url.startsWith("blob:")) URL.revokeObjectURL(url);
+        if (url.startsWith("blob:")) URL.revokeObjectURL(url);
       });
     };
   }, [getSafeFilesArray, generatePreview]);
-const validateSingleFile = useCallback(
-  (file: File): string | null => {
-    if (file.size > maxSizeBytes) {
-      return `${file.name}: Max ${maxSizeMB}MB file allowed`;
-    }
 
-    const acceptedTypes = accept.split(",").map((t) => t.trim().toLowerCase());
-    const fileType = (file.type || "").toLowerCase();
-    const fileName = (file.name || "").toLowerCase();
-    const fileExt = fileName.includes(".")
-      ? `.${fileName.split(".").pop()}`
-      : "";
-
-    const isTypeMatch = acceptedTypes.some((type) => {
-      if (type.endsWith("/*")) {
-        return fileType.startsWith(type.replace("/*", "/"));
+  const validateSingleFile = useCallback(
+    (file: File): string | null => {
+      if (file.size > maxSizeBytes) {
+        return `${file.name}: Max ${maxSizeMB}MB file allowed`;
       }
-      if (fileType && fileType === type) return true;
-      if (type.startsWith(".") && fileExt && fileExt === type) return true;
-      if (!type.includes("/") && !type.startsWith(".") && fileExt) {
-        return fileExt === `.${type}`;
-      }
-      return false;
-    });
 
-    if (!isTypeMatch) {
-      return `${file.name}: Unsupported file format`;
-    }
-    return null;
-  },
-  [maxSizeBytes, maxSizeMB, accept],
-);
+      const acceptedTypes = accept.split(",").map((t) => t.trim().toLowerCase());
+      const fileType = (file.type || "").toLowerCase();
+      const fileName = (file.name || "").toLowerCase();
+      const fileExt = fileName.includes(".")
+        ? `.${fileName.split(".").pop()}`
+        : "";
+
+      const isTypeMatch = acceptedTypes.some((type) => {
+        if (type.endsWith("/*")) return fileType.startsWith(type.replace("/*", "/"));
+        if (fileType && fileType === type) return true;
+        if (type.startsWith(".") && fileExt && fileExt === type) return true;
+        if (!type.includes("/") && !type.startsWith(".") && fileExt) {
+          return fileExt === `.${type}`;
+        }
+        return false;
+      });
+
+      return isTypeMatch ? null : `${file.name}: Unsupported file format`;
+    },
+    [maxSizeBytes, maxSizeMB, accept],
+  );
 
   const validateFiles = useCallback(
     (files: File[]): { valid: File[]; errors: string[] } => {
       const valid: File[] = [];
       const errors: string[] = [];
-
       for (const file of files) {
         const err = validateSingleFile(file);
         if (err) errors.push(err);
@@ -369,23 +350,17 @@ const validateSingleFile = useCallback(
 
   const addFilesToForm = useCallback(
     (files: File[]) => {
-      const currentFiles = getSafeFilesArray();
-      const updatedFiles = [...currentFiles, ...files];
-      setValue(name, updatedFiles, {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
+      const updated = [...getSafeFilesArray(), ...files];
+      setValue(name, updated, { shouldValidate: true, shouldDirty: true });
     },
     [getSafeFilesArray, name, setValue],
   );
 
   const processFiles = useCallback(
     async (files: File[]): Promise<void> => {
-      if (files.length === 0) return;
+      if (!files.length) return;
 
-      const currentFiles = getSafeFilesArray();
-      const availableSlots = maxFiles - currentFiles.length;
-
+      const availableSlots = maxFiles - getSafeFilesArray().length;
       if (availableSlots <= 0) {
         showSnackbar("warning", `Maximum ${maxFiles} files only allowed`);
         return;
@@ -409,8 +384,8 @@ const validateSingleFile = useCallback(
           "success",
           `${filesToAdd.length} file(s) uploaded successfully`,
         );
-      } catch (error) {
-        console.error("Upload error:", error);
+      } catch (err) {
+        console.error("Upload error:", err);
         showSnackbar("error", "Failed to upload files");
       } finally {
         setTimeout(() => {
@@ -426,55 +401,44 @@ const validateSingleFile = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
       const files = event.target.files;
       if (!files || disabled) return;
-      const newFiles = Array.from(files);
-      const { valid, errors } = validateFiles(newFiles);
-
-      if (errors.length > 0) {
+      const { valid, errors } = validateFiles(Array.from(files));
+      if (errors.length) {
         showSnackbar("error", errors[0]);
         event.target.value = "";
         return;
       }
-
-      if (valid.length > 0) {
-        await processFiles(valid);
-      }
-
+      if (valid.length) await processFiles(valid);
       event.target.value = "";
     },
     [disabled, validateFiles, processFiles],
   );
 
   const handleDragOver = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
       if (!disabled) setDragActive(true);
     },
     [disabled],
   );
 
-  const handleDragLeave = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      setDragActive(false);
-    },
-    [],
-  );
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+  }, []);
 
   const handleDrop = useCallback(
-    async (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
+    async (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
       setDragActive(false);
       if (disabled) return;
-
-      const files = Array.from(event.dataTransfer.files);
-      if (files.length === 0) return;
-
+      const files = Array.from(e.dataTransfer.files);
+      if (!files.length) return;
       const { valid, errors } = validateFiles(files);
-      if (errors.length > 0) {
+      if (errors.length) {
         showSnackbar("error", errors[0]);
         return;
       }
-      if (valid.length > 0) await processFiles(valid);
+      if (valid.length) await processFiles(valid);
     },
     [disabled, validateFiles, processFiles],
   );
@@ -482,17 +446,14 @@ const validateSingleFile = useCallback(
   const handleRemoveFile = useCallback(
     (index: number, e: React.MouseEvent<HTMLButtonElement>): void => {
       e.stopPropagation();
-
-      const currentFiles = getSafeFilesArray();
-      const removed = currentFiles[index];
+      const current = getSafeFilesArray();
+      const removed = current[index];
 
       if (typeof removed === "string") {
         setDeletedFiles((prev) => [...prev, removed]);
       }
 
-      const updatedFiles = currentFiles.filter((_, i) => i !== index);
-
-      setValue(name, updatedFiles, {
+      setValue(name, current.filter((_, i) => i !== index), {
         shouldValidate: true,
         shouldDirty: true,
       });
@@ -521,7 +482,7 @@ const validateSingleFile = useCallback(
   const handleClosePreview = useCallback(() => setPreviewFile(null), []);
 
   useEffect(() => {
-    if (deletedFiles.length === 0) return;
+    if (!deletedFiles.length) return;
     setValue("deletedFiles", deletedFiles as unknown, { shouldDirty: true });
   }, [deletedFiles, setValue]);
 
@@ -549,347 +510,375 @@ const validateSingleFile = useCallback(
 
   return (
     <>
-      <Box sx={{ width: fullWidth ? "100%" : "auto", ...sx }}>
-        {label && (
-          <Typography
-            variant="caption"
-            component="label"
+      <Box sx={{ width: fullWidth ? "100%" : "auto" }}>
+        <FormControl
+          fullWidth={fullWidth}
+          required={required}
+          error={Boolean(errorMessage)}
+          disabled={disabled}
+          variant="outlined"
+          sx={sx}
+        >
+          <InputLabel
+            shrink
+            htmlFor={`${name}-upload`}
             sx={{
-              display: "block",
-              fontWeight: 600,
-              fontSize: "0.75rem",
-              mb: 0.75,
-              color: disabled ? "text.disabled" : "text.primary",
+              px: 0.5,
+              bgcolor: "background.paper",
             }}
           >
             {label}
-            {required && (
-              <Typography
-                component="span"
-                sx={{ color: "error.main", ml: 0.3, fontSize: "0.75rem" }}
-              >
-                *
-              </Typography>
-            )}
-          </Typography>
-        )}
+          </InputLabel>
 
-        <Paper
-          variant="outlined"
-          sx={{
-            border: `1.5px solid ${
-              dragActive
-                ? palette.containerBorderActive
-                : errorMessage
-                  ? palette.containerBorderError
-                  : palette.containerBorder
-            }`,
-            borderRadius: 1,
-            bgcolor: dragActive
-              ? palette.containerBgDrag
-              : disabled
-                ? palette.containerBgDisabled
-                : palette.containerBg,
-            transition: "all 0.2s",
-            overflow: "hidden",
-          }}
-        >
-          <Box
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            sx={{
-              p: tokens.rowPadding,
-              opacity: disabled ? 0.6 : 1,
-              borderBottom:
-                previews.length > 0
-                  ? `1px solid ${palette.containerBorder}`
-                  : "none",
-              transition: "all 0.2s",
-            }}
-          >
-            <Box
-              onClick={handleUploadClick}
-              sx={{
-                cursor: disabled ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 1,
-                borderRadius: 1,
-                py: 1,
-                "&:hover": {
-                  bgcolor:
-                    !disabled && !dragActive ? palette.dropHoverBg : undefined,
-                },
-              }}
-            >
-              {uploading ? (
-                <>
-                  <CircularProgress
-                    size={tokens.dropIconSize}
-                    thickness={4}
-                    sx={{ color: palette.dropIconActive }}
-                  />
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ fontSize: tokens.countFontSize }}
+          <OutlinedInput
+            id={`${name}-upload`}
+            notched
+            label={label}
+            multiline
+            value=" "
+            onChange={() => {}}
+            inputComponent={React.forwardRef<HTMLDivElement, any>(
+              function UploadInput({ ...props }, ref) {
+                return (
+                  <Box
+                    {...props}
+                    ref={ref}
+                    sx={{ display: "flex", flexDirection: "column", p: 0 }}
                   >
-                    {uploadProgress}%
-                  </Typography>
-                </>
-              ) : (
-                <>
-                  <CloudUpload
-                    sx={{
-                      fontSize: tokens.dropIconSize,
-                      color: dragActive
-                        ? palette.dropIconActive
-                        : palette.dropIcon,
-                    }}
-                  />
-                  <Typography
-                    variant="caption"
-                    noWrap
-                    sx={{
-                      color: disabled
-                        ? palette.dropTextDisabled
-                        : palette.dropText,
-                      fontWeight: 500,
-                      fontSize: tokens.dropFontSize,
-                    }}
-                  >
-                    {dragActive
-                      ? "Drop files here"
-                      : placeholder || "Upload documents"}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: palette.dropIcon,
-                      fontSize: tokens.countFontSize,
-                    }}
-                  >
-                    ({currentFilesCount}/{maxFiles})
-                  </Typography>
-                </>
-              )}
-            </Box>
-          </Box>
-
-          {previews.length > 0 && (
-            <Grow in={true}>
-              <Box sx={{ p: tokens.rowPadding, bgcolor: palette.fileListBg }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: tokens.gap,
-                  }}
-                >
-                  <AnimatePresence>
-                    {previews.map((item, index) => {
-                      const meta = getFileMeta(item.file);
-                      const sizeLabel = getFileSize(item.file);
-                      const canPreview = isPreviewable(item.file);
-
-                      return (
-                        <motion.div
-                          key={`${item.url}-${index}`}
-                          initial={{ opacity: 0, y: -8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, x: 40 }}
-                          transition={{ duration: 0.18 }}
-                        >
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                              p: 1,
-                              borderRadius: 1,
-                              border: `1px solid ${palette.fileRowBorder}`,
-                              bgcolor: palette.fileRowBg,
-                              transition: "all 0.2s",
-                              "&:hover": {
-                                borderColor: palette.fileRowBorderHover,
-                                boxShadow: palette.fileRowShadowHover,
-                              },
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                width: tokens.fileIconSize + 8,
-                                height: tokens.fileIconSize + 8,
-                                borderRadius: 1,
-                                bgcolor: alpha(meta.color, 0.1),
-                                color: meta.color,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                flexShrink: 0,
-                                "& svg": { fontSize: tokens.fileIconSize },
-                              }}
-                            >
-                              {meta.icon}
-                            </Box>
-
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Tooltip
-                                title={meta.name}
-                                arrow
-                                placement="top-start"
-                              >
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    display: "block",
-                                    fontWeight: 600,
-                                    fontSize: tokens.dropFontSize,
-                                    color: palette.fileName,
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                    cursor: "default",
-                                  }}
-                                >
-                                  {meta.name}
-                                </Typography>
-                              </Tooltip>
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  gap: 1,
-                                  alignItems: "center",
-                                  mt: 0.2,
-                                }}
-                              >
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    fontSize: tokens.countFontSize,
-                                    color: meta.color,
-                                    fontWeight: 700,
-                                    letterSpacing: 0.5,
-                                  }}
-                                >
-                                  {meta.label}
-                                </Typography>
-                                {sizeLabel && (
-                                  <Typography
-                                    variant="caption"
-                                    sx={{
-                                      fontSize: tokens.countFontSize,
-                                      color: palette.fileMeta,
-                                    }}
-                                  >
-                                    • {sizeLabel}
-                                  </Typography>
-                                )}
-                              </Box>
-                            </Box>
-
-                            {!disabled && (
-                            <Box
-  sx={{
-    display: "flex",
-    gap: 0.75,
-    flexShrink: 0,
-    alignItems: "center",
-    pl: 1,
-    ml: 0.5,
-    borderLeft: `1px solid ${palette.fileRowBorder}`,
-  }}
-
-                              >
-                               {canPreview && (
-  <Tooltip title="Preview" arrow>
-    <IconButton
-      size="small"
-      onClick={(e) => {
-        e.stopPropagation();
-        handleOpenPreview(item);
-      }}
-      sx={{
-        width: tokens.actionBtnSize,
-        height: tokens.actionBtnSize,
-        p: 0,
-        borderRadius: 1,
-        bgcolor: palette.previewBtnBg,
-        "&:hover": {
-          bgcolor: alpha(palette.previewBtnIcon, 0.18),
-        },
-        transition: "all 0.15s ease",
-      }}
-    >
-      <Visibility
-        sx={{ fontSize: tokens.actionIconSize, color: palette.previewBtnIcon }}
-      />
-    </IconButton>
-  </Tooltip>
-)}
-                              <Tooltip title="Remove" arrow>
-  <IconButton
-    size="small"
-    onClick={(e) => handleRemoveFile(index, e)}
-    sx={{
-      width: tokens.actionBtnSize,
-      height: tokens.actionBtnSize,
-      p: 0,
-      borderRadius: 1,
-      bgcolor: palette.deleteBtnBg,
-      color: palette.deleteBtnIcon,
-      border: `1px solid transparent`,
-      "&:hover": {
-        bgcolor: alpha(palette.deleteBtnIcon, 0.18),
-        borderColor: palette.deleteBtnIcon,
-      },
-      transition: "all 0.15s ease",
-    }}
-  >
-    <Delete sx={{ fontSize: tokens.actionIconSize }} />
-  </IconButton>
-</Tooltip>
-                              </Box>
-                            )}
-                          </Box>
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
-                </Box>
-
-                {!uploading && previews.length > 0 && (
-                  <Fade in={true}>
+                    {/* ── DROP ZONE ── */}
                     <Box
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
                       sx={{
-                        mt: 1,
+                        p: tokens.boxPadding,
+                        opacity: disabled ? 0.6 : 1,
+                        borderBottom:
+                          previews.length > 0
+                            ? `1px solid ${palette.containerBorder}`
+                            : "none",
+                        transition: "all 0.2s",
                         display: "flex",
                         alignItems: "center",
-                        gap: 0.5,
+                        justifyContent: "center",
+                        gap: tokens.gap,
+                        flexWrap: "wrap",
                       }}
                     >
-                      <CheckCircle
-                        sx={{ fontSize: 10, color: palette.successColor }}
-                      />
-                      <Typography
-                        variant="caption"
+                      <Box
+                        onClick={handleUploadClick}
                         sx={{
-                          color: palette.successColor,
-                          fontSize: "0.6rem",
+                          cursor: disabled ? "not-allowed" : "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 1,
+                          flex: 1,
+                          minWidth: 0,
+                          borderRadius: 1,
+                          py: 0.5,
+                          "&:hover": {
+                            bgcolor:
+                              !disabled && !dragActive
+                                ? palette.dropHoverBg
+                                : undefined,
+                          },
                         }}
                       >
-                        {previews.length} document(s) ready • Max {maxSizeMB}MB
-                        per file
-                      </Typography>
+                        {uploading ? (
+                          <>
+                            <CircularProgress
+                              size={tokens.dropIconSize - 2}
+                              thickness={4}
+                              sx={{ color: palette.dropIconActive }}
+                            />
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ fontSize: tokens.countFontSize }}
+                            >
+                              {uploadProgress}%
+                            </Typography>
+                          </>
+                        ) : (
+                          <>
+                            <CloudUpload
+                              sx={{
+                                fontSize: tokens.dropIconSize,
+                                color: dragActive
+                                  ? palette.dropIconActive
+                                  : palette.dropIcon,
+                              }}
+                            />
+                            <Typography
+                              variant="caption"
+                              noWrap
+                              sx={{
+                                color: disabled
+                                  ? palette.dropTextDisabled
+                                  : palette.dropText,
+                                fontWeight: 500,
+                                fontSize: tokens.dropFontSize,
+                              }}
+                            >
+                              {dragActive
+                                ? "Drop files here"
+                                : placeholder || "Upload documents"}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: palette.dropIcon,
+                                fontSize: tokens.countFontSize,
+                              }}
+                            >
+                              ({currentFilesCount}/{maxFiles})
+                            </Typography>
+                          </>
+                        )}
+                      </Box>
                     </Box>
-                  </Fade>
-                )}
-              </Box>
-            </Grow>
-          )}
-        </Paper>
+
+                    {/* ── FILE LIST ── */}
+                    {previews.length > 0 && (
+                      <Box
+                        sx={{
+                          p: tokens.boxPadding,
+                          bgcolor: palette.fileListBg,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: tokens.gap,
+                          }}
+                        >
+                          <AnimatePresence>
+                            {previews.map((item, index) => {
+                              const meta = getFileMeta(item.file);
+                              const sizeLabel = getFileSize(item.file);
+                              const canPreview = isPreviewable(item.file);
+
+                              return (
+                                <motion.div
+                                  key={`${item.url}-${index}`}
+                                  initial={{ opacity: 0, y: -8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, x: 40 }}
+                                  transition={{ duration: 0.18 }}
+                                >
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 1,
+                                      px: 1,
+                                      height: 30,
+                                      boxSizing: "border-box",
+                                      borderRadius: 1,
+                                      bgcolor: palette.fileRowBg,
+                                      transition: "all 0.2s",
+                                      "&:hover": {
+                                        boxShadow: palette.fileRowShadowHover,
+                                      },
+                                    }}
+                                  >
+                                    <Box
+                                      sx={{
+                                        width: 22,
+                                        height: 22,
+                                        borderRadius: 1,
+                                        bgcolor: alpha(meta.color, 0.1),
+                                        color: meta.color,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        flexShrink: 0,
+                                        "& svg": {
+                                          fontSize: tokens.fileIconSize - 6,
+                                        },
+                                      }}
+                                    >
+                                      {meta.icon}
+                                    </Box>
+
+                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                      <Tooltip
+                                        title={meta.name}
+                                        arrow
+                                        placement="top-start"
+                                      >
+                                        <Typography
+                                          variant="caption"
+                                          sx={{
+                                            display: "block",
+                                            fontWeight: 600,
+                                            fontSize: tokens.dropFontSize,
+                                            color: palette.fileName,
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                            cursor: "default",
+                                            lineHeight: 1.1,
+                                          }}
+                                        >
+                                          {meta.name}
+                                        </Typography>
+                                      </Tooltip>
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          gap: 1,
+                                          alignItems: "center",
+                                        }}
+                                      >
+                                        <Typography
+                                          variant="caption"
+                                          sx={{
+                                            fontSize: tokens.countFontSize,
+                                            color: meta.color,
+                                            fontWeight: 700,
+                                            letterSpacing: 0.5,
+                                            lineHeight: 1.1,
+                                          }}
+                                        >
+                                          {meta.label}
+                                        </Typography>
+                                        {sizeLabel && (
+                                          <Typography
+                                            variant="caption"
+                                            sx={{
+                                              fontSize: tokens.countFontSize,
+                                              color: palette.fileMeta,
+                                              lineHeight: 1.1,
+                                            }}
+                                          >
+                                            • {sizeLabel}
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                    </Box>
+
+                                    {!disabled && (
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          gap: 0.75,
+                                          flexShrink: 0,
+                                          alignItems: "center",
+                                          pl: 1,
+                                          ml: 0.5,
+                                          borderLeft: `1px solid ${palette.fileRowBorder}`,
+                                        }}
+                                      >
+                                        {canPreview && (
+                                          <Tooltip title="Preview" arrow>
+                                            <IconButton
+                                              size="small"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleOpenPreview(item);
+                                              }}
+                                              sx={{
+                                                width: tokens.actionBtnSize,
+                                                height: tokens.actionBtnSize,
+                                                p: 0,
+                                                borderRadius: 1,
+                                                bgcolor: palette.previewBtnBg,
+                                                "&:hover": {
+                                                  bgcolor: alpha(
+                                                    palette.previewBtnIcon,
+                                                    0.18,
+                                                  ),
+                                                },
+                                                transition: "all 0.15s ease",
+                                              }}
+                                            >
+                                              <Visibility
+                                                sx={{
+                                                  fontSize: tokens.actionIconSize,
+                                                  color: palette.previewBtnIcon,
+                                                }}
+                                              />
+                                            </IconButton>
+                                          </Tooltip>
+                                        )}
+                                        <Tooltip title="Remove" arrow>
+                                          <IconButton
+                                            size="small"
+                                            onClick={(e) =>
+                                              handleRemoveFile(index, e)
+                                            }
+                                            sx={{
+                                              width: tokens.actionBtnSize,
+                                              height: tokens.actionBtnSize,
+                                              p: 0,
+                                              borderRadius: 1,
+                                              bgcolor: palette.deleteBtnBg,
+                                              color: palette.deleteBtnIcon,
+                                              border: "1px solid transparent",
+                                              "&:hover": {
+                                                bgcolor: alpha(
+                                                  palette.deleteBtnIcon,
+                                                  0.18,
+                                                ),
+                                                borderColor: palette.deleteBtnIcon,
+                                              },
+                                              transition: "all 0.15s ease",
+                                            }}
+                                          >
+                                            <Delete
+                                              sx={{
+                                                fontSize: tokens.actionIconSize,
+                                              }}
+                                            />
+                                          </IconButton>
+                                        </Tooltip>
+                                      </Box>
+                                    )}
+                                  </Box>
+                                </motion.div>
+                              );
+                            })}
+                          </AnimatePresence>
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+                );
+              },
+            )}
+            sx={{
+              p: 0,
+              alignItems: "stretch",
+              "& .MuiOutlinedInput-input": { p: 0 },
+              "& fieldset": {
+                borderColor: isDark
+                  ? "rgba(255,255,255,0.18)"
+                  : "rgba(15,23,42,0.28)",
+                borderWidth: 1.5,
+              },
+              "&:hover fieldset": {
+                borderColor: disabled
+                  ? undefined
+                  : errorMessage
+                    ? "error.main"
+                    : isDark
+                      ? "#ffffff"
+                      : "#000000",
+              },
+              "&.Mui-focused fieldset": { borderColor: "primary.main" },
+              ...(dragActive && {
+                "& fieldset": { borderColor: "primary.main", borderWidth: 1.5 },
+              }),
+            }}
+          />
+
+          <FormHelperText sx={{ mx: 1.5, mt: 0.5 }}>
+            {errorMessage || " "}
+          </FormHelperText>
+        </FormControl>
 
         <input
           ref={fileInputRef}
@@ -900,23 +889,9 @@ const validateSingleFile = useCallback(
           disabled={disabled}
           style={{ display: "none" }}
         />
-
-        {errorMessage && (
-          <Typography
-            variant="caption"
-            sx={{
-              display: "block",
-              mt: 0.5,
-              ml: 1,
-              color: "error.main",
-              fontSize: "0.65rem",
-            }}
-          >
-            {errorMessage}
-          </Typography>
-        )}
       </Box>
 
+      {/* ───────── PREVIEW DIALOG ───────── */}
       <Dialog
         open={!!previewFile}
         onClose={handleClosePreview}
@@ -1006,7 +981,7 @@ const validateSingleFile = useCallback(
             alignItems: "center",
             justifyContent: "center",
             bgcolor: palette.dialogPreviewBg,
-            height: { xs: "calc(100vh - 152px)", sm: "72vh" },
+            height: { xs: "calc(100vh - 152px)", sm: "65vh" },
             position: "relative",
           }}
         >

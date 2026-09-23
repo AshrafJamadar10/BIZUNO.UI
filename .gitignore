@@ -3,3 +3,7 @@ dist
 dist-ssr
 *.local
 .env
+*.tsbuildinfo
+tsconfig.app.tsbuildinfo
+tsconfig.app.tsbuildinfo
+*.tsbuildinfo

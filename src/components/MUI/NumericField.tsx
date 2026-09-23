@@ -23,6 +23,7 @@ const NumericField: FC<NumericFieldProps> = ({
   required = false,
   min = 0,
   max = 100,
+  size = 'small',
   decimal = false,
   decimalDigits = 2,
   maxlength = 10,
@@ -94,6 +95,7 @@ const NumericField: FC<NumericFieldProps> = ({
         <TextField
           {...field}
           {...rest}
+          size={size}
           label={label}
           size="small"
           type="text"
@@ -106,7 +108,15 @@ const NumericField: FC<NumericFieldProps> = ({
           error={!!errors[name]}
           helperText={typeof errors[name]?.message === "string" ? errors[name]?.message : undefined}
           slotProps={{
-  htmlInput: { maxLength: maxlength }
+  ...rest.slotProps,
+  inputLabel: {
+    ...rest.slotProps?.inputLabel,
+    shrink: rest.placeholder ? true : undefined,
+  },
+  htmlInput: {
+    ...rest.slotProps?.htmlInput,
+    maxLength: maxlength,
+  },
 }}
           required={required}
           sx={{ "& .MuiInputLabel-asterisk": { color: "error.main" }, ...sx }}

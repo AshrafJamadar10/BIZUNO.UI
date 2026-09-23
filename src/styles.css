@@ -255,10 +255,6 @@
   display: inline;
 }
 
-.numeric {
-  font-variant-numeric: tabular-nums;
-}
-
 .dark .MuiPaper-root {
   background-image: none;
 }

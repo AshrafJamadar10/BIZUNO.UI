@@ -12,7 +12,7 @@ type SearchFieldProps = TextFieldProps & {
   sx?: SxProps<Theme>;
 };
 
-const SearchField: FC<SearchFieldProps> = ({ label, name, sx, required = false, ...rest }) => {
+const SearchField: FC<SearchFieldProps> = ({ label, name, sx, size = 'small',required = false, ...rest }) => {
   const { t } = useTranslation();
   const trans = getComponentTranslations(t);
   const {
@@ -31,6 +31,7 @@ const SearchField: FC<SearchFieldProps> = ({ label, name, sx, required = false, 
         <TextField
           {...field}
           {...rest}
+          size={size}
           label={label}
           value={field.value || ''}
           fullWidth
@@ -38,14 +39,20 @@ const SearchField: FC<SearchFieldProps> = ({ label, name, sx, required = false, 
           error={!!errors[name]}
           helperText={String(errors[name]?.message || ' ')}
           onChange={(e) => field.onChange(e.target.value)}
-          slotProps={{
+         slotProps={{
+  ...rest.slotProps,
+  inputLabel: {
+    ...rest.slotProps?.inputLabel,
+    shrink: rest.placeholder ? true : undefined,
+  },
   input: {
+    ...rest.slotProps?.input,
     startAdornment: (
       <InputAdornment position="start">
         <SearchIcon />
       </InputAdornment>
-    )
-  }
+    ),
+  },
 }}
           sx={{ '& .MuiInputLabel-asterisk': { color: 'error.main' }, ...sx }}
         />
