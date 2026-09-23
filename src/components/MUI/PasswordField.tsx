@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { Controller, useFormContext } from 'react-hook-form';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { PasswordRegex, checkPasswordStrength, PasswordStrengthLevels } from '@/utils/RegexPattern';
+import { PasswordRegex, checkPasswordStrength, PasswordStrengthLevels } from '@/constant/RegixPattern';
 import { useTranslation } from 'react-i18next';
 import { getComponentTranslations } from '@/helpers/useTranslations';
 
@@ -26,6 +26,7 @@ type PasswordFieldProps = TextFieldProps & {
   sx?: SxProps<Theme>;
   showStrengthIndicator?: boolean;
   confirmFieldName?: string;
+  validateStrength?: boolean;
 };
 const PasswordField: FC<PasswordFieldProps> = ({
   name,
@@ -36,6 +37,7 @@ const PasswordField: FC<PasswordFieldProps> = ({
   sx,
   showStrengthIndicator = true,
   confirmFieldName,
+  validateStrength = true,
   ...rest
 }) => {
   const { t } = useTranslation();
@@ -52,11 +54,13 @@ const PasswordField: FC<PasswordFieldProps> = ({
   const confirmValue = confirmFieldName ? watch(confirmFieldName) : undefined;
   const validatePassword = (value: string) => {
     if (!value) return required ? translations.passwordField.requiredError(label) : true;
-    if (value.length < minLength) return translations.passwordField.minLength(minLength);
-    if (value.length > maxLength) return translations.passwordField.maxLength(maxLength);
-    if (!PasswordRegex.withCase.regex.test(value)) return PasswordRegex.withCase.message;
-    if (!PasswordRegex.withNumber.regex.test(value)) return PasswordRegex.withNumber.message;
-    if (!PasswordRegex.withSpecialChar.regex.test(value)) return PasswordRegex.withSpecialChar.message;
+    if (validateStrength) {
+      if (value.length < minLength) return translations.passwordField.minLength(minLength);
+      if (value.length > maxLength) return translations.passwordField.maxLength(maxLength);
+      if (!PasswordRegex.withCase.regex.test(value)) return PasswordRegex.withCase.message;
+      if (!PasswordRegex.withNumber.regex.test(value)) return PasswordRegex.withNumber.message;
+      if (!PasswordRegex.withSpecialChar.regex.test(value)) return PasswordRegex.withSpecialChar.message;
+    }
     if (confirmFieldName && value !== confirmValue) return translations.passwordField.mismatch;
 
     return true;
@@ -92,6 +96,7 @@ const PasswordField: FC<PasswordFieldProps> = ({
                 {...field}
                 {...rest}
                 fullWidth
+                size="small"
                 required={required}
                 label={label}
                 type={showPassword ? 'text' : 'password'}
@@ -120,6 +125,12 @@ const PasswordField: FC<PasswordFieldProps> = ({
 }}
                 sx={{
                   '& .MuiInputLabel-asterisk': { color: 'error.main' },
+                  '& .MuiOutlinedInput-root.Mui-focused': { backgroundColor: 'transparent' },
+                  '& input:-webkit-autofill': {
+                    WebkitBoxShadow: '0 0 0 100px transparent inset',
+                    WebkitTextFillColor: 'inherit',
+                    transition: 'background-color 5000s ease-in-out 0s'
+                  },
                   ...sx
                 }}
               />

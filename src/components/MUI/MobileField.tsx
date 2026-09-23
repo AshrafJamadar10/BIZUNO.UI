@@ -1,6 +1,6 @@
 import { TextField, InputAdornment, type SxProps, type Theme, type TextFieldProps } from '@mui/material';
 import { Controller, useFormContext } from 'react-hook-form';
-import { mobileRegex, SanitizeMobileRegex } from '@/utils/RegexPattern';
+import { mobileRegex, SanitizeMobileRegex } from '@/constant/RegixPattern';
 import { useTranslation } from 'react-i18next';
 import { getComponentTranslations } from '@/helpers/useTranslations';
 

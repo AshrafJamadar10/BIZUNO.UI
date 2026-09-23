@@ -1,7 +1,7 @@
 import { type FC } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { TextField, type SxProps, type TextFieldProps, type Theme } from '@mui/material';
-import { aadharRegex, formatAadhar } from '@/utils/RegexPattern';
+import { aadharRegex, formatAadhar } from '@/constant/RegixPattern';
 import { useTranslation } from 'react-i18next';
 import { getComponentTranslations } from '@/helpers/useTranslations';
 

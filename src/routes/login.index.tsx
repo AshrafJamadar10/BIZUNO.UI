@@ -10,7 +10,7 @@ export const Route = createFileRoute("/login/")({
   beforeLoad: () => {
     const role = window.localStorage.getItem("bizuno-demo-role") as DemoRole | null;
     if (role === "PlatformAdmin") {
-      throw redirect({ to: "/platform/admin/login" });
+      throw redirect({ to: "/platform/login" });
     }
     if (role === "Owner" || role === "Manager" || role === "Salesperson" || role === "Accountant") {
       throw redirect({ to: landingPath(role) });

@@ -17,3 +17,7 @@ export function useUpdatePackage() {
   const queryClient = useQueryClient();
   return useMutation({ mutationFn: ({ id, input }: { id: string; input: Partial<Omit<api.SubscriptionPackage, "id">> }) => api.updatePackage(id, input), onSuccess: () => queryClient.invalidateQueries({ queryKey: platformKeys.all }) });
 }
+export function useCreatePackage() {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: api.createPackage, onSuccess: () => queryClient.invalidateQueries({ queryKey: platformKeys.all }) });
+}

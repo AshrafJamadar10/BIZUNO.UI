@@ -1,7 +1,7 @@
 import { type FC } from 'react';
 import { TextField, type SxProps, type TextFieldProps, type Theme } from '@mui/material';
 import { useFormContext, Controller } from 'react-hook-form';
-import { emailRegex, emailDomainRegex, SanitizeEmailRegex } from '@/utils/RegexPattern';
+import { emailRegex, emailDomainRegex, SanitizeEmailRegex } from '@/constant/RegixPattern';
 import { getComponentTranslations } from '@/helpers/useTranslations';
 import { useTranslation } from 'react-i18next';
 
