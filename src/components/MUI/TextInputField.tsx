@@ -76,7 +76,7 @@ const TextInputField: FC<TextInputFieldProps> = ({
       rules={combineRules}
       render={({ field }) => {
         const hasError = !!errors[name];
-        const helperText = hasError ? String(errors[name]?.message) : ' ';
+        const helperText = hasError ? String(errors[name]?.message) : undefined;
 
         return (
           <TextField

@@ -6,7 +6,7 @@ import { PanelLeft } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { TextField, type TextFieldProps } from "@mui/material";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -329,15 +329,15 @@ const SidebarInset = React.forwardRef<HTMLDivElement, React.ComponentProps<"main
 SidebarInset.displayName = "SidebarInset";
 
 const SidebarInput = React.forwardRef<
-  React.ElementRef<typeof Input>,
-  React.ComponentProps<typeof Input>
+  HTMLInputElement,
+  TextFieldProps
 >(({ className, ...props }, ref) => {
   return (
-    <Input
-      ref={ref}
-      data-sidebar="input"
+    <TextField
+      inputRef={ref}
+      slotProps={{ htmlInput: { "data-sidebar": "input" } }}
       className={cn(
-        "h-8 w-full bg-background shadow-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+        "h-8 w-full",
         className,
       )}
       {...props}

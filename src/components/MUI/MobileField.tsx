@@ -40,10 +40,11 @@ const MobileField: React.FC<MobileFieldProps> = ({ label, name, required = false
           {...field}
           {...rest}
           fullWidth
+          size="small"
           label={label}
           value={field.value || ''}
           error={!!errors[name]}
-          helperText={String(errors[name]?.message || ' ')}
+          helperText={errors[name]?.message ? String(errors[name].message) : undefined}
           onChange={(e) => {
             const input = SanitizeMobileRegex(e.target.value);
             const digitsOnly = input.replace(/\D/g, '');

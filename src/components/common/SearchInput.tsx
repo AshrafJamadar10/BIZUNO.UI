@@ -1,5 +1,5 @@
 import { Search, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { TextField } from "@mui/material";
 import { cn } from "@/lib/utils";
 
 interface SearchInputProps {
@@ -13,11 +13,11 @@ export function SearchInput({ value, onChange, placeholder, className }: SearchI
   return (
     <div className={cn("relative", className)}>
       <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
+      <TextField
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? "Search…"}
-        className="pl-9"
+        className="pl-9" size="small"
         aria-label={placeholder ?? "Search"}
       />
       {value ? (

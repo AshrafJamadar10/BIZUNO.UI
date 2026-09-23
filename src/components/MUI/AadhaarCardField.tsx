@@ -40,6 +40,7 @@ const AadhaarCardField: FC<AadharCardInputProps> = ({ name, label, required = fa
           {...rest}
           label={label}
           fullWidth
+          size="small"
           required={required}
           value={formatAadhar(field.value || '')}
           onChange={(e) => {
@@ -47,7 +48,7 @@ const AadhaarCardField: FC<AadharCardInputProps> = ({ name, label, required = fa
             field.onChange(rawValue);
           }}
           error={!!errors[name]}
-          helperText={String(errors[name]?.message || ' ')}
+          helperText={errors[name]?.message ? String(errors[name].message) : undefined}
         slotProps={{
   htmlInput: {
     maxLength: 14,

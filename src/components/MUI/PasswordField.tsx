@@ -110,7 +110,7 @@ const PasswordField: FC<PasswordFieldProps> = ({
                   field.onChange(e.target.value);
                 }}
                 error={hasError}
-                helperText={errors[name]?.message?.toString() || ' '}
+                helperText={errors[name]?.message?.toString() || undefined}
                slotProps={{
   htmlInput: { maxLength },
   input: {

@@ -172,6 +172,18 @@ function RootComponent() {
           fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif',
         },
         shape: { borderRadius: 10 },
+        components: {
+          MuiTextField: {
+            defaultProps: {
+              size: "small",
+            },
+          },
+          MuiAutocomplete: {
+            defaultProps: {
+              size: "small",
+            },
+          },
+        },
       }),
     [mode],
   );

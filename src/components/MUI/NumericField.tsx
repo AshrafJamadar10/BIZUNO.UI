@@ -95,6 +95,7 @@ const NumericField: FC<NumericFieldProps> = ({
           {...field}
           {...rest}
           label={label}
+          size="small"
           type="text"
           fullWidth
           value={field.value ?? ""}
@@ -103,7 +104,7 @@ const NumericField: FC<NumericFieldProps> = ({
             field.onChange(sanitized);
           }}
           error={!!errors[name]}
-          helperText={typeof errors[name]?.message === "string" ? errors[name]?.message : " "}
+          helperText={typeof errors[name]?.message === "string" ? errors[name]?.message : undefined}
           slotProps={{
   htmlInput: { maxLength: maxlength }
 }}

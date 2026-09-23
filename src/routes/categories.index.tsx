@@ -7,8 +7,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { MenuItem, TextField } from "@mui/material";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory } from "@/hooks/queries/products";
@@ -33,8 +32,8 @@ function CategoriesPage() {
     <PageHeader title="Product categories" description="Organise products into clear, reusable catalogue groups." crumbs={[{ label: "Home", to: "/" }, { label: "Product categories" }]} actions={<Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button><Plus className="size-4" /> New category</Button></DialogTrigger>
       <DialogContent><DialogHeader><DialogTitle>{editingId ? "Edit category" : "Add category"}</DialogTitle></DialogHeader>
-        <div className="space-y-3"><div><Label htmlFor="category-name">Name</Label><Input id="category-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5" /></div>
-          <div><Label>Status</Label><select className="mt-1.5 h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as "active" | "inactive" })}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+        <div className="space-y-3 pt-2"><div><TextField fullWidth size="small" label="Name" id="category-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div><TextField fullWidth size="small" select label="Status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as "active" | "inactive" })}><MenuItem value="active">Active</MenuItem><MenuItem value="inactive">Inactive</MenuItem></TextField></div>
         </div>
         <DialogFooter><Button variant="outline" onClick={close}>Cancel</Button><Button disabled={!form.name.trim() || create.isPending || update.isPending} onClick={() => { const options = { onSuccess: () => { toast.success(editingId ? "Category updated" : "Category added"); close(); }, onError: (error: Error) => toast.error(error.message) }; if (editingId) update.mutate({ id: editingId, input: form }, options); else create.mutate(form, options); }}>{editingId ? "Save changes" : "Save category"}</Button></DialogFooter>
       </DialogContent>
