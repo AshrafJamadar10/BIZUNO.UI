@@ -41,7 +41,6 @@ const MobileField: React.FC<MobileFieldProps> = ({ label, name,size='small', req
           {...rest}
           size={size}
           fullWidth
-          size="small"
           label={label}
           value={field.value || ''}
           error={!!errors[name]}

@@ -39,7 +39,6 @@ const EmailField: FC<EmailFieldProps> = ({ label, name, sx,size = 'small', requi
           {...rest}
           size={size}
           label={label}
-          size="small"
           inputMode="email"
           type="email"
           value={field.value || ''}

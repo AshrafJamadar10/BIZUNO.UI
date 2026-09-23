@@ -98,7 +98,6 @@ const PasswordField: FC<PasswordFieldProps> = ({
                 {...rest}
                 size={size}
                 fullWidth
-                size="small"
                 required={required}
                 label={label}
                 type={showPassword ? 'text' : 'password'}
@@ -122,7 +121,11 @@ const PasswordField: FC<PasswordFieldProps> = ({
   htmlInput: {
     ...rest.slotProps?.htmlInput,
     maxLength,
+<<<<<<< HEAD
   },
+=======
+  },          
+>>>>>>> 3ab8609cf707e2d5e211063e8b9f050402bc7aab
   input: {
     ...rest.slotProps?.input,
     endAdornment: (

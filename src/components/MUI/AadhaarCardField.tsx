@@ -41,7 +41,6 @@ const AadhaarCardField: FC<AadharCardInputProps> = ({ name, label,size = 'small'
           size={size}
           label={label}
           fullWidth
-          size="small"
           required={required}
           value={formatAadhar(field.value || '')}
           onChange={(e) => {

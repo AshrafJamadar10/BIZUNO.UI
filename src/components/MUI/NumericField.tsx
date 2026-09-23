@@ -97,7 +97,6 @@ const NumericField: FC<NumericFieldProps> = ({
           {...rest}
           size={size}
           label={label}
-          size="small"
           type="text"
           fullWidth
           value={field.value ?? ""}
