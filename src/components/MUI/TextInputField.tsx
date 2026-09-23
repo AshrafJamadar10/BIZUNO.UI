@@ -26,6 +26,7 @@ const TextInputField: FC<TextInputFieldProps> = ({
   maxLength,
   rows = 1,
   sx,
+   size = 'small', 
   rules,
   ...rest
 }) => {
@@ -83,7 +84,7 @@ const TextInputField: FC<TextInputFieldProps> = ({
             {...field}
             {...rest}
             fullWidth
-            size="small"
+            size={size}
             required={required}
             label={label}
             multiline={inputType === 'textarea' || inputType === 'all'}
@@ -100,6 +101,10 @@ const TextInputField: FC<TextInputFieldProps> = ({
             helperText={helperText}
            slotProps={{
   ...rest.slotProps,
+  inputLabel: {
+    ...rest.slotProps?.inputLabel,
+    shrink: rest.placeholder ? true : undefined,
+  },
   htmlInput: {
     ...rest.slotProps?.htmlInput,
     maxLength

@@ -41,6 +41,7 @@ const DropdownField: FC<DropdownFieldProps> = ({
   options,
   required = false,
   sx = {},
+  size = 'small',
   onChangeCallback,
   freeSolo = false,
   placeholder,
@@ -171,6 +172,7 @@ const DropdownField: FC<DropdownFieldProps> = ({
   {...params}
   {...field}
   {...rest}
+  size={size}
   inputRef={ref}
   label={label}
   placeholder={placeholder}
