@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import {
   Box,
   Checkbox,
@@ -16,22 +15,38 @@ import {
   TablePagination,
   TableRow,
   TextField,
-  type TableCellProps,
-  type SxProps,
-  CircularProgress,
   Typography,
+  CircularProgress,
   useTheme,
   alpha,
   Fade,
   Zoom,
   Chip,
   InputAdornment,
+  type TableCellProps,
+  type SxProps,
+  type Theme,
 } from "@mui/material";
-import { useMemo, useState, type ReactNode, useEffect, useRef } from "react";
-import { IconTrashX, IconSearch, IconFilterOff } from "@tabler/icons-react";
+import {
+  useMemo,
+  useState,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useCallback,
+  type MouseEvent,
+} from "react";
+import {
+  IconTrashX,
+  IconSearch,
+  IconFilterOff,
+  IconArrowUp,
+  IconArrowDown,
+  IconSelector,
+} from "@tabler/icons-react";
+import { motion, AnimatePresence } from "framer-motion";
 import ExportIcons from "@/utils/ExportIcons";
 import { iconMap } from "@/utils/Icons";
-import { motion, AnimatePresence } from "framer-motion";
 
 export const ACTION_KEY = "actionbutton" as const;
 export const SR_NO_KEY = "sr_no" as const;
@@ -41,6 +56,7 @@ export type Column<T> = {
   label: string;
   render?: (row: T, index?: number) => ReactNode;
   exportable?: boolean;
+  sortable?: boolean;
   minWidth?: number | string;
   width?: number | string;
   maxWidth?: number | string;
@@ -58,41 +74,113 @@ export type FooterRow = {
   content: Array<{ value: ReactNode; colSpan?: number }>;
 };
 
-interface TableStyles {
-  captionSx?: SxProps;
-  headerSx?: SxProps;
-  rowHoverSx?: SxProps;
-  paperSx?: SxProps;
-}
+export type RowClickTarget<T> = "all" | keyof T | typeof ACTION_KEY;
 
-interface UniversalTableProps<
-  T extends Record<string, unknown>,
-> extends TableStyles {
+export type RowClickConfig<T> = {
+  target?: RowClickTarget<T>;
+  handler: (row: T, index: number) => void;
+};
+
+export type ExportConfig = {
+  mode?: "all" | "uiShows";
+  enabled?: boolean;
+  filename?: string;
+  showCopy?: boolean;
+  showExcel?: boolean;
+  showCSV?: boolean;
+  showPDF?: boolean;
+  showWord?: boolean;
+  showPrint?: boolean;
+};
+
+export type SearchConfig = {
+  enabled?: boolean;
+  highlightColor?: string;
+  placeholder?: string;
+  value?: string;
+  onChange?: (value: string) => void;
+};
+
+export type CaptionConfig = {
+  content: ReactNode;
+  sx?: SxProps<Theme>;
+};
+
+export type HeaderConfig = {
+  title?: ReactNode;
+  subtitle?: ReactNode;
+  countLabel?: (count: number) => ReactNode;
+};
+
+export type TableStyles = {
+  paper?: SxProps<Theme>;
+  header?: SxProps<Theme>;
+  caption?: SxProps<Theme>;
+  rowHover?: SxProps<Theme>;
+  toolbar?: SxProps<Theme>;
+};
+
+export type DropdownConfig<T> = {
+  key: keyof T;
+  options: readonly DropdownOption[];
+  onChange?: (row: T, value: T[keyof T]) => void;
+  disabled?: boolean | ((row: T) => boolean);
+  width?: number;
+  sx?: SxProps<Theme>;
+};
+
+export type SortDirection = "asc" | "desc";
+
+export type SortableConfig<T> = {
+  enabled?: boolean;
+  defaultKey?: keyof T;
+  defaultDir?: SortDirection;
+  mode?: "client" | "server";
+  onChange?: (key: keyof T, dir: SortDirection) => void;
+};
+export type BulkAction<T> = {
+  key: string;
+  label: string;
+  icon?: ReactNode;
+  color?: string;
+  onClick: (rows: T[]) => void;
+};
+
+export type TableModeConfig =
+  | { type: "client" }
+  | {
+      type: "server";
+      total: number;
+      page: number;
+      pageSize: number;
+      onPageChange: (page: number) => void;
+    };
+
+export interface UniversalTableProps<T extends Record<string, unknown>> {
   data: readonly T[];
   columns: readonly Column<T>[];
-  caption?: ReactNode;
+  header?: HeaderConfig;
+  caption?: CaptionConfig;
   rowsPerPage?: number;
-  sortOrder?: 'newer' | 'older';
   tableSize?: "small" | "medium";
   textAlign?: TableCellProps["align"];
-  showSearch?: boolean;
-  showExport?: boolean;
+  search?: SearchConfig;
+  export?: ExportConfig;
+  sortable?: SortableConfig<T>;
+  mode?: TableModeConfig;
   enableCheckbox?: boolean;
-  highlightColor?: string;
   loading?: boolean;
   getRowId?: (row: T, index: number) => string | number;
   onSelectionChange?: (rows: T[]) => void;
   onDeleteSelected?: (rows: T[]) => void;
-  emptyStateMessage?: string;
-  emptyStateIcon?: ReactNode;
-  dropdown?: {
-    key: keyof T;
-    options: readonly DropdownOption[];
-    onChange?: (row: T, value: T[keyof T]) => void;
-    disabled?: boolean | ((row: T) => boolean);
-    width?: number;
-    sx?: SxProps;
+  bulkActions?: readonly BulkAction<T>[];
+  emptyState?: {
+    message?: string;
+    description?: string;
+    icon?: ReactNode;
+    action?: { label: string; onClick: () => void; icon?: ReactNode };
   };
+  dropdown?: DropdownConfig<T>;
   autoUpdateDropdown?: boolean;
   onDataChange?: (rows: T[]) => void;
   actions?: Partial<Record<keyof typeof iconMap, (row: T) => void>>;
@@ -102,216 +190,399 @@ interface UniversalTableProps<
   maxHeight?: number | string;
   showSrNo?: boolean;
   srNoLabel?: string;
+  rowClick?: RowClickConfig<T>;
+  toolbar?: { left?: ReactNode; right?: ReactNode };
+  styles?: TableStyles;
 }
 
-function buildExportData<T extends Record<string, unknown>>(
+const buildExportPayload = <T extends Record<string, unknown>>(
   rows: readonly T[],
   columns: readonly Column<T>[],
-): Record<string, unknown>[] {
-  return rows.map((row, idx) =>
-    columns.reduce(
-      (acc, col) => {
-        if (
-          col.key !== ACTION_KEY &&
-          col.key !== SR_NO_KEY &&
-          col.exportable !== false
-        ) {
-          acc[col.label] = row[col.key];
-        }
-        return acc;
-      },
-      { "Sr. No.": idx + 1 } as Record<string, unknown>,
-    ),
+): {
+  data: Record<string, unknown>[];
+  columns: { key: string; label: string }[];
+} => {
+  const exportable = columns.filter(
+    (c) =>
+      c.key !== ACTION_KEY &&
+      c.key !== SR_NO_KEY &&
+      c.exportable !== false,
   );
-}
+
+  const exportColumns = [
+    { key: "Sr. No.", label: "Sr. No." },
+    ...exportable.map((c) => ({ key: c.label, label: c.label })),
+  ];
+
+  const data = rows.map((row, idx) => {
+    const acc: Record<string, unknown> = { "Sr. No.": idx + 1 };
+    for (const col of exportable) {
+      acc[col.label] = row[col.key as keyof T];
+    }
+    return acc;
+  });
+
+  return { data, columns: exportColumns };
+};
 
 export function UniversalTable<T extends Record<string, unknown>>({
   data,
   columns,
+  header,
   caption,
-  rowsPerPage = 5,
-  tableSize = "small",
+  rowsPerPage = 10,
+  tableSize = "medium",
   textAlign = "left",
-  showSearch = false,
-  showExport = false,
+  search,
+  export: exportCfg,
+  sortable,
+  mode,
   enableCheckbox = false,
+  loading = false,
   getRowId,
   onSelectionChange,
   onDeleteSelected,
+  bulkActions,
+  emptyState,
   dropdown,
   autoUpdateDropdown,
   onDataChange,
   actions,
+  customActionButton,
   footerRows = [],
-  captionSx,
-  headerSx,
-  sortOrder = 'newer',
-  paperSx,
-  highlightColor = "#ffeb3b",
-  loading = false,
-  emptyStateMessage = "No data available",
-  emptyStateIcon,
   stickyHeader = false,
   maxHeight = "auto",
-  showSrNo = true,
+  showSrNo = false,
   srNoLabel = "Sr No",
-  customActionButton,
+  rowClick,
+  toolbar,
+  styles,
 }: UniversalTableProps<T>) {
   const theme = useTheme();
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState("");
+  const isDark = theme.palette.mode === "dark";
+
+  const isServer = mode?.type === "server";
+  const serverTotal = isServer ? mode.total : 0;
+  const serverPage = isServer ? mode.page : 0;
+  const serverPageSize = isServer ? mode.pageSize : rowsPerPage;
+  const serverOnPageChange = isServer ? mode.onPageChange : undefined;
+
+  const [clientPage, setClientPage] = useState(0);
+  const [internalQuery, setInternalQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(
     new Set(),
   );
+  const [sortKey, setSortKey] = useState<keyof T | null>(
+    sortable?.defaultKey ?? null,
+  );
+  const [sortDir, setSortDir] = useState<SortDirection>(
+    sortable?.defaultDir ?? "asc",
+  );
+
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const searchEnabled = search?.enabled ?? false;
+  const highlightColor =
+    search?.highlightColor ?? (isDark ? "#facc15" : "#ffeb3b");
+  const searchPlaceholder = search?.placeholder ?? "Search...";
+  const query = search?.value ?? internalQuery;
+
+  const exportMode = exportCfg?.mode ?? "all";
+  const exportEnabled = exportCfg?.enabled ?? false;
+  const exportFilename = exportCfg?.filename ?? "Export";
+
+  const rowClickTarget: RowClickTarget<T> = rowClick?.target ?? "all";
+  const rowClickHandler = rowClick?.handler;
+
+  const sortableEnabled = sortable?.enabled ?? false;
+  const sortableMode = sortable?.mode ?? "client";
+
+  const emptyMessage = emptyState?.message ?? "No data available";
+  const emptyDescription = emptyState?.description;
+  const emptyIcon = emptyState?.icon;
+  const emptyAction = emptyState?.action;
+
+  const effectivePage = isServer ? serverPage : clientPage;
+  const effectivePageSize = isServer ? serverPageSize : rowsPerPage;
+
   useEffect(() => {
-    setPage(0);
-  }, [search]);
+    if (!isServer) setClientPage(0);
+  }, [query, isServer]);
 
-  const resolveRowId = (row: T, index: number): string | number =>
-    getRowId ? getRowId(row, index) : index;
-
-const highlightText = (text: string | number | null | undefined): ReactNode => {
-  if (!search || text == null) return text;
-  const textString = text.toString();
-  const searchLower = search.toLowerCase();
-  if (!textString.toLowerCase().includes(searchLower)) return textString;
-  const regex = new RegExp(`(${searchLower})`, "gi");
-  const parts = textString.split(regex);
-  return parts.map((part, i) => 
-    part.toLowerCase() === searchLower ? (
-     <mark key={i} style={{
-  background: highlightColor,
-  color: theme.palette.mode === "dark" ? "#000" : "#1a1a1a",
-  padding: "2px 1px",
-  borderRadius: "3px",
-  fontWeight: "bold",
-}}>{part}</mark>
-    ) : part
-  );
-};
-
-
-  const DEFAULT_DROPDOWN_SX: SxProps = {
-    width: 150,
-    bgcolor: alpha(theme.palette.background.paper, 0.9),
-    color: theme.palette.text.primary,
-    fontWeight: 600,
-    fontSize: 13,
-    borderRadius: 2,
-    "& .MuiSelect-icon": { color: theme.palette.text.secondary },
-    "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.08) },
-  };
-
-const sortedData = useMemo(() => {
-  if (!search) return sortOrder === 'newer' ? [...data] : [...data].reverse();
-  const nameCol = columns.find(c => c.label === "Consumer Name" || c.key === "name") ?? columns[0];
-  const searchLower = search.toLowerCase();
-
-  const rowMatches = (row: T) =>
-    columns.some(col => {
-      if (col.key === ACTION_KEY) return false;
-      return String(row[col.key] ?? "").toLowerCase().includes(searchLower);
-    });
-
-  return [...data].sort((a, b) => {
-    const matchA = rowMatches(a);
-    const matchB = rowMatches(b);
-    if (matchA !== matchB) return matchA ? -1 : 1;
-
-    const valA = String(a[nameCol.key] ?? "").toLowerCase();
-    const valB = String(b[nameCol.key] ?? "").toLowerCase();
-    return valA.localeCompare(valB);
-  });
-}, [data, sortOrder, search, columns]);
-
-const filteredData = useMemo(() => {
-  if (!search) return sortedData;
-  const searchLower = search.toLowerCase();
-  return sortedData.filter(row => 
-    columns.some(col => {
-      if (col.key === ACTION_KEY) return false;
-      return String(row[col.key] ?? "").toLowerCase().includes(searchLower);
-    })
-  );
-}, [sortedData, columns, search]);
-
-
-const paginatedData = useMemo(
-  () =>
-    filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-  [filteredData, page, rowsPerPage],
-);
-  
-
-  const exportData = useMemo(
-    () => buildExportData(filteredData, columns),
-    [filteredData, columns],
+  const resolveRowId = useCallback(
+    (row: T, index: number): string | number =>
+      getRowId ? getRowId(row, index) : index,
+    [getRowId],
   );
 
-  const exportColumns = useMemo(() => {
-    const cols = [{ key: "Sr. No.", label: "Sr. No." }];
-    columns
-      .filter(
-        (c) =>
-          c.key !== ACTION_KEY && c.key !== SR_NO_KEY && c.exportable !== false,
-      )
-      .forEach((c) => cols.push({ key: c.label, label: c.label }));
-    return cols;
-  }, [columns]);
-
-  const selectedRows = data.filter((_, i) =>
-    selectedIds.has(resolveRowId(_, i)),
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      if (search?.onChange) {
+        search.onChange(value);
+        return;
+      }
+      setInternalQuery(value);
+    },
+    [search],
   );
 
-  const toggleRow = (row: T, index: number) => {
-    const id = resolveRowId(row, index);
-    const updated = new Set(selectedIds);
-    if (updated.has(id)) updated.delete(id);
-    else updated.add(id);
-    setSelectedIds(updated);
-    onSelectionChange?.(data.filter((r, i) => updated.has(resolveRowId(r, i))));
-  };
+  const highlightText = useCallback(
+    (text: string | number | null | undefined): ReactNode => {
+      if (!query || text == null) return text;
+      const textString = text.toString();
+      const lower = query.toLowerCase();
+      if (!textString.toLowerCase().includes(lower)) return textString;
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`(${escaped})`, "gi");
+      const parts = textString.split(regex);
+      return parts.map((part, i) =>
+        part.toLowerCase() === lower ? (
+          <mark
+            key={i}
+            style={{
+              background: highlightColor,
+              color: isDark ? "#000" : "#1a1a1a",
+              padding: "2px 2px",
+              borderRadius: 3,
+              fontWeight: 700,
+            }}
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      );
+    },
+    [query, highlightColor, isDark],
+  );
 
-  const toggleAll = (checked: boolean) => {
-    const updated = new Set<string | number>();
-    if (checked) data.forEach((r, i) => updated.add(resolveRowId(r, i)));
-    setSelectedIds(updated);
-    onSelectionChange?.(checked ? [...data] : []);
-  };
+  const palette = useMemo(() => {
+    const primary = theme.palette.primary.main;
 
-  const updateRow = (row: T, patch: Partial<T>) => {
-    if (!onDataChange) return;
-    const targetId = resolveRowId(row, -1);
-    onDataChange(
-      data.map((r, i) =>
-        resolveRowId(r, i) === targetId ? { ...r, ...patch } : r,
-      ),
-    );
-  };
-
-  const getGlobalIndex = (pageIndex: number): number =>
-    page * rowsPerPage + pageIndex + 1;
-
-  const allColumns = useMemo(() => {
-    const cols = [...columns];
-    if (showSrNo) {
-      return [
-        {
-          key: SR_NO_KEY,
-          label: srNoLabel,
-          width: 70,
-          minWidth: 70,
-          align: "center",
-        } as Column<T>,
-        ...cols,
-      ];
+    if (isDark) {
+      return {
+        paperBg: "#111827",
+        paperBorder: alpha(theme.palette.common.white, 0.08),
+        titleColor: "#f8fafc",
+        subtitleColor: alpha("#e2e8f0", 0.65),
+        toolbarBg: "#111827",
+        toolbarBorder: alpha(theme.palette.common.white, 0.08),
+        searchBg: alpha(theme.palette.common.white, 0.03),
+        searchBorder: alpha(theme.palette.common.white, 0.1),
+        searchText: "#f8fafc",
+        searchIconColor: alpha("#e2e8f0", 0.5),
+        searchPlaceholder: alpha("#e2e8f0", 0.4),
+        headerBg: "#0f172a",
+        headerText: alpha("#e2e8f0", 0.7),
+        headerBorder: alpha(theme.palette.common.white, 0.08),
+        cellText: "#f1f5f9",
+        cellMuted: alpha("#e2e8f0", 0.6),
+        cellBorder: alpha(theme.palette.common.white, 0.06),
+        rowAlt: alpha(theme.palette.common.white, 0.015),
+        rowHover: alpha(theme.palette.common.white, 0.04),
+        rowSelected: alpha(primary, 0.18),
+        footerBg: "#0f172a",
+        chipBg: alpha(primary, 0.18),
+        chipText: "#93c5fd",
+        emptyIcon: alpha("#e2e8f0", 0.35),
+        scrollTrack: alpha(theme.palette.common.black, 0.25),
+        scrollThumb: alpha(theme.palette.common.white, 0.15),
+      };
     }
-    return cols;
+    return {
+      paperBg: "#ffffff",
+      paperBorder: alpha(theme.palette.divider, 0.9),
+      titleColor: "#0f172a",
+      subtitleColor: alpha("#0f172a", 0.6),
+      toolbarBg: "#ffffff",
+      toolbarBorder: alpha(theme.palette.divider, 0.9),
+      searchBg: alpha(theme.palette.common.black, 0.015),
+      searchBorder: alpha(theme.palette.divider, 1),
+      searchText: "#0f172a",
+      searchIconColor: alpha("#0f172a", 0.4),
+      searchPlaceholder: alpha("#0f172a", 0.4),
+      headerBg: "#f8fafc",
+      headerText: alpha("#0f172a", 0.6),
+      headerBorder: alpha(theme.palette.divider, 1),
+      cellText: "#0f172a",
+      cellMuted: alpha("#0f172a", 0.55),
+      cellBorder: alpha(theme.palette.divider, 0.8),
+      rowAlt: alpha(theme.palette.common.black, 0.008),
+      rowHover: alpha(theme.palette.common.black, 0.02),
+      rowSelected: alpha(primary, 0.06),
+      footerBg: "#f8fafc",
+      chipBg: alpha(primary, 0.1),
+      chipText: primary,
+      emptyIcon: alpha("#0f172a", 0.3),
+      scrollTrack: alpha(theme.palette.common.black, 0.05),
+      scrollThumb: alpha(theme.palette.common.black, 0.15),
+    };
+  }, [theme, isDark]);
+
+  const sortedData = useMemo(() => {
+    if (!sortableEnabled || !sortKey || sortableMode === "server") {
+      return [...data];
+    }
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...data].sort((a, b) => {
+      const va = a[sortKey];
+      const vb = b[sortKey];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === "number" && typeof vb === "number") {
+        return (va - vb) * dir;
+      }
+      return String(va).localeCompare(String(vb)) * dir;
+    });
+  }, [data, sortableEnabled, sortKey, sortDir, sortableMode]);
+
+  const filteredData = useMemo(() => {
+    if (isServer || !query) return sortedData;
+    const lower = query.toLowerCase();
+    return sortedData.filter((row) =>
+      columns.some((col) => {
+        if (col.key === ACTION_KEY) return false;
+        return String(row[col.key as keyof T] ?? "")
+          .toLowerCase()
+          .includes(lower);
+      }),
+    );
+  }, [sortedData, columns, query, isServer]);
+
+  const paginatedData = useMemo(() => {
+    if (isServer) return filteredData;
+    return filteredData.slice(
+      clientPage * rowsPerPage,
+      clientPage * rowsPerPage + rowsPerPage,
+    );
+  }, [filteredData, clientPage, rowsPerPage, isServer]);
+
+  const totalCount = isServer ? serverTotal : filteredData.length;
+
+  const exportColumnsSource = useMemo<readonly Column<T>[]>(
+    () => columns.filter((c) => c.exportable !== false),
+    [columns],
+  );
+
+  const { data: exportData, columns: exportColumns } = useMemo(
+    () =>
+      buildExportPayload(
+        filteredData,
+        exportMode === "uiShows" ? exportColumnsSource : columns,
+      ),
+    [filteredData, columns, exportColumnsSource, exportMode],
+  );
+
+  const selectedRows = useMemo(
+    () => data.filter((_, i) => selectedIds.has(resolveRowId(_, i))),
+    [data, selectedIds, resolveRowId],
+  );
+
+  const toggleRow = useCallback(
+    (row: T, index: number) => {
+      const id = resolveRowId(row, index);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        onSelectionChange?.(data.filter((r, i) => next.has(resolveRowId(r, i))));
+        return next;
+      });
+    },
+    [data, onSelectionChange, resolveRowId],
+  );
+
+  const toggleAll = useCallback(
+    (checked: boolean) => {
+      const next = new Set<string | number>();
+      if (checked) data.forEach((r, i) => next.add(resolveRowId(r, i)));
+      setSelectedIds(next);
+      onSelectionChange?.(checked ? [...data] : []);
+    },
+    [data, onSelectionChange, resolveRowId],
+  );
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    onSelectionChange?.([]);
+  }, [onSelectionChange]);
+
+  const updateRow = useCallback(
+    (row: T, patch: Partial<T>) => {
+      if (!onDataChange) return;
+      const targetId = resolveRowId(row, -1);
+      onDataChange(
+        data.map((r, i) =>
+          resolveRowId(r, i) === targetId ? { ...r, ...patch } : r,
+        ),
+      );
+    },
+    [data, onDataChange, resolveRowId],
+  );
+
+  const isWholeRowClickable =
+    rowClickTarget === "all" && Boolean(rowClickHandler);
+  const isCellClickable = useCallback(
+    (key: keyof T | typeof ACTION_KEY): boolean =>
+      Boolean(rowClickHandler) && rowClickTarget === key,
+    [rowClickHandler, rowClickTarget],
+  );
+
+  const onRowClickInternal = useCallback(
+    (row: T, index: number) => {
+      rowClickHandler?.(row, index);
+    },
+    [rowClickHandler],
+  );
+
+  const onCellClickInternal = useCallback(
+    (e: MouseEvent, row: T, index: number) => {
+      if (!rowClickHandler) return;
+      e.stopPropagation();
+      rowClickHandler(row, index);
+    },
+    [rowClickHandler],
+  );
+
+  const handleSortClick = useCallback(
+    (col: Column<T>) => {
+      if (!sortableEnabled) return;
+      if (col.key === ACTION_KEY || col.key === SR_NO_KEY) return;
+      if (col.sortable === false) return;
+
+      const key = col.key as keyof T;
+      const nextDir: SortDirection =
+        sortKey === key && sortDir === "asc" ? "desc" : "asc";
+
+      setSortKey(key);
+      setSortDir(nextDir);
+      sortable?.onChange?.(key, nextDir);
+    },
+    [sortableEnabled, sortKey, sortDir, sortable],
+  );
+
+  const getGlobalIndex = useCallback(
+    (pageIndex: number): number =>
+      effectivePage * effectivePageSize + pageIndex + 1,
+    [effectivePage, effectivePageSize],
+  );
+
+  const allColumns = useMemo<readonly Column<T>[]>(() => {
+    if (!showSrNo) return columns;
+    return [
+      {
+        key: SR_NO_KEY,
+        label: srNoLabel,
+        width: 60,
+        align: "center",
+      } as Column<T>,
+      ...columns,
+    ];
   }, [columns, showSrNo, srNoLabel]);
 
-  const getColumnStyle = (col: Column<T>): React.CSSProperties => {
+  const getColumnStyle = useCallback((col: Column<T>): React.CSSProperties => {
     const style: React.CSSProperties = {};
     if (col.width) style.width = col.width;
     if (col.minWidth) style.minWidth = col.minWidth;
@@ -321,16 +592,68 @@ const paginatedData = useMemo(
       style.wordBreak = "break-word";
     }
     return style;
+  }, []);
+
+  const dropdownSx: SxProps<Theme> = useMemo(
+    () => ({
+      width: 150,
+      bgcolor: palette.searchBg,
+      color: palette.cellText,
+      fontWeight: 600,
+      fontSize: 13,
+      borderRadius: 2,
+      "& .MuiSelect-icon": { color: palette.cellMuted },
+      "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.08) },
+      "& fieldset": { borderColor: palette.searchBorder },
+    }),
+    [palette, theme],
+  );
+
+  const clickableCellSx: SxProps<Theme> = {
+    cursor: "pointer",
+    "&:hover .clickable-cell-text": { textDecoration: "underline" },
   };
+
+  const tableSx: SxProps<Theme> = {
+    width: "100%",
+    borderCollapse: "separate",
+    borderSpacing: 0,
+    tableLayout: "auto",
+    bgcolor: palette.paperBg,
+    "& .MuiTableCell-root": {
+      borderColor: palette.cellBorder,
+      color: palette.cellText,
+    },
+  };
+
+  const showHeader = Boolean(
+    header?.title ||
+      header?.subtitle ||
+      (exportEnabled && exportData.length > 0) ||
+      toolbar?.left ||
+      toolbar?.right,
+  );
 
   if (loading) {
     return (
       <Paper
-        sx={{ p: 4, borderRadius: 3, textAlign: "center", bgcolor: "#f5f7fa" }}
+        elevation={0}
+        sx={{
+          p: 4,
+          borderRadius: 3,
+          textAlign: "center",
+          bgcolor: palette.paperBg,
+          border: `1px solid ${palette.paperBorder}`,
+          ...styles?.paper,
+        }}
       >
-        <CircularProgress size={50} sx={{ color: "#1976d2" }} />
-        <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
-          Loading records...
+        <CircularProgress
+          size={44}
+          thickness={3}
+          sx={{ color: theme.palette.primary.main }}
+        />
+        <Typography variant="body2" sx={{ mt: 2, color: palette.subtitleColor }}>
+          Loading...
         </Typography>
       </Paper>
     );
@@ -338,159 +661,241 @@ const paginatedData = useMemo(
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.35 }}
     >
       <Paper
         elevation={0}
         sx={{
-          borderRadius: 2,
-          boxShadow: `0 4px 20px ${alpha(theme.palette.common.black, 0.08)}`,
+          borderRadius: 3,
+          bgcolor: palette.paperBg,
           overflow: "hidden",
-          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-          ...paperSx,
+          border: `1px solid ${palette.paperBorder}`,
+          ...styles?.paper,
         }}
       >
-        {(showSearch || showExport) && (
+        {showHeader && (
           <Box
             sx={{
-              px: { xs: 1.5, sm: 3 },
-              py: 2,
+              px: { xs: 2, sm: 3 },
+              py: 2.5,
+              borderBottom: `1px solid ${palette.toolbarBorder}`,
+              bgcolor: palette.toolbarBg,
               display: "flex",
-              width: "100%",
               justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
+              alignItems: { xs: "flex-start", sm: "center" },
+              flexDirection: { xs: "column", sm: "row" },
               gap: 2,
-              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-              background: alpha(theme.palette.background.default, 0.5),
+              ...styles?.toolbar,
             }}
           >
-           {showSearch && (
-  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-    <TextField
-      inputRef={searchInputRef}
-      variant="outlined"
-      placeholder="Search..."
-      value={search}
-      onChange={(e) => {
-        setSearch(e.target.value);
-        setPage(0);
-      }}
-      size="small"
-      sx={{ minWidth: { xs: "100%", sm: 260 } }}
-      slotProps={{
-        input:{
-        startAdornment: (
-          <InputAdornment position="start">
-            <IconSearch size={18} />
-          </InputAdornment>
-        ),
-         }
-      }}
-    />
-    {search && (
-      <Chip
-        label={`Search: "${search}"`}
-        onDelete={() => {
-          setSearch("");
-          setPage(0);
-          searchInputRef.current?.focus();
-        }}
-        sx={{
-          bgcolor: alpha(theme.palette.primary.main, 0.1),
-          color: theme.palette.primary.main,
-        }}
-      />
-    )}
-  </Box>
-)}
-            {showExport && exportData.length > 0 && (
-              <Zoom in={true} timeout={500}>
-                <Box>
-                  <ExportIcons
-                    data={exportData}
-                    columns={exportColumns}
-                    filename="Export"
-                    iconSize={22}
-                  />
-                </Box>
-              </Zoom>
-            )}
+            <Box sx={{ minWidth: 0 }}>
+              {header?.title && (
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: { xs: 18, sm: 22 },
+                    color: palette.titleColor,
+                    letterSpacing: "-0.015em",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {header.title}
+                </Typography>
+              )}
+              {header?.subtitle && (
+                <Typography
+                  sx={{
+                    mt: 0.5,
+                    color: palette.subtitleColor,
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {header.subtitle}
+                </Typography>
+              )}
+              {toolbar?.left && <Box sx={{ mt: 1 }}>{toolbar.left}</Box>}
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.25,
+                flexShrink: 0,
+                flexWrap: "wrap",
+              }}
+            >
+              {toolbar?.right}
+              {exportEnabled && exportData.length > 0 && (
+                <Zoom in timeout={300}>
+                  <Box>
+                    <ExportIcons
+                      data={exportData}
+                      columns={exportColumns}
+                      filename={exportFilename}
+                      iconSize={16}
+                      variant="toolbar"
+                      showCopy={exportCfg?.showCopy ?? false}
+                      showExcel={exportCfg?.showExcel ?? true}
+                      showCSV={exportCfg?.showCSV ?? true}
+                      showPDF={exportCfg?.showPDF ?? true}
+                      showWord={exportCfg?.showWord ?? false}
+                      showPrint={exportCfg?.showPrint ?? true}
+                    />
+                  </Box>
+                </Zoom>
+              )}
+            </Box>
           </Box>
         )}
 
-        {caption && (
-          <motion.div
-            initial={{ scale: 0.95 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.3 }}
+        {caption?.content && (
+          <Box
+            sx={{
+              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              color: theme.palette.primary.contrastText,
+              fontWeight: 700,
+              fontSize: { xs: 14, sm: 16 },
+              py: 1.25,
+              px: 2,
+              ...caption.sx,
+            }}
           >
+            {caption.content}
+          </Box>
+        )}
+
+        {searchEnabled && (
+          <Box
+            sx={{
+              px: { xs: 2, sm: 3 },
+              py: 1.75,
+              borderBottom: `1px solid ${palette.toolbarBorder}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 2,
+              flexWrap: "wrap",
+            }}
+          >
+            <TextField
+              inputRef={searchInputRef}
+              variant="outlined"
+              placeholder={searchPlaceholder}
+              value={query}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              size="small"
+              sx={{
+                width: { xs: "100%", sm: 340 },
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: palette.searchBg,
+                  color: palette.searchText,
+                  fontSize: 13,
+                  borderRadius: 2,
+                  "& fieldset": { borderColor: palette.searchBorder },
+                  "&:hover fieldset": {
+                    borderColor: alpha(theme.palette.primary.main, 0.5),
+                  },
+                  "&.Mui-focused fieldset": {
+                    borderColor: theme.palette.primary.main,
+                  },
+                  "& input::placeholder": {
+                    color: palette.searchPlaceholder,
+                    opacity: 1,
+                  },
+                },
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <IconSearch size={16} color={palette.searchIconColor} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
             <Box
               sx={{
-                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: { xs: 16, sm: 18 },
-                textAlign: "center",
-                py: 1.5,
-                px: 2,
-                ...captionSx,
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                ml: "auto",
               }}
             >
-              {caption}
+              {query && (
+                <Chip
+                  size="small"
+                  label={`"${query}"`}
+                  onDelete={() => {
+                    handleSearchChange("");
+                    searchInputRef.current?.focus();
+                  }}
+                  sx={{
+                    bgcolor: palette.chipBg,
+                    color: palette.chipText,
+                    fontWeight: 600,
+                    fontSize: 12,
+                    height: 24,
+                  }}
+                />
+              )}
+              {header?.countLabel && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: palette.subtitleColor,
+                    fontSize: 12.5,
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {header.countLabel(totalCount)}
+                </Typography>
+              )}
             </Box>
-          </motion.div>
+          </Box>
         )}
 
         <TableContainer
           sx={{
-            maxHeight: maxHeight,
+            maxHeight,
             overflowX: "auto",
             overflowY: "auto",
             position: "relative",
+            bgcolor: palette.paperBg,
             "&::-webkit-scrollbar": { height: 8, width: 8 },
             "&::-webkit-scrollbar-track": {
-              background: alpha(theme.palette.common.black, 0.05),
+              background: palette.scrollTrack,
               borderRadius: 4,
             },
             "&::-webkit-scrollbar-thumb": {
-              background: alpha(theme.palette.primary.main, 0.3),
+              background: palette.scrollThumb,
               borderRadius: 4,
-              "&:hover": { background: alpha(theme.palette.primary.main, 0.5) },
             },
           }}
         >
-          <Table
-            size={tableSize}
-            stickyHeader={stickyHeader}
-            sx={{
-              minWidth: { xs: 600, sm: 750, md: 900 },
-              borderCollapse: "separate",
-              borderSpacing: "0",
-              tableLayout: "auto",
-              "& .MuiTableCell-root": {
-                py: { xs: 0.75, sm: 1.5 },
-                px: { xs: 1, sm: 1.5 },
-              },
-            }}
-          >
+          <Table size={tableSize} stickyHeader={stickyHeader} sx={tableSx}>
             <TableHead>
               <TableRow>
                 {enableCheckbox && (
                   <TableCell
                     padding="checkbox"
+                    onClick={(e) => e.stopPropagation()}
                     sx={{
-                      bgcolor: theme.palette.background.paper,
-                      borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                      bgcolor: palette.headerBg,
+                      borderBottom: `1px solid ${palette.headerBorder}`,
                       position: stickyHeader ? "sticky" : "relative",
                       top: 0,
                       zIndex: 3,
-                      width: 48,
+                      width: 44,
                     }}
                   >
                     <Checkbox
+                      size="small"
                       indeterminate={
                         selectedIds.size > 0 && selectedIds.size < data.length
                       }
@@ -499,42 +904,94 @@ const paginatedData = useMemo(
                       }
                       onChange={(e) => toggleAll(e.target.checked)}
                       sx={{
-                        color: theme.palette.text.secondary,
-                        "&.Mui-checked": { color: theme.palette.primary.main },
+                        color: palette.cellMuted,
+                        "&.Mui-checked": {
+                          color: theme.palette.primary.main,
+                        },
                       }}
                     />
                   </TableCell>
                 )}
-                {allColumns.map((col, idx) => (
-                  <TableCell
-                    key={String(col.key)}
-                    align={
-                      col.align ||
-                      (col.key === SR_NO_KEY ? "center" : textAlign)
-                    }
-                    sx={{
-                      fontWeight: 700,
-                      fontSize: { xs: 12, sm: 14 },
-                      bgcolor: theme.palette.background.paper,
-                      color: theme.palette.text.primary,
-                      borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                      whiteSpace: "nowrap",
-                      position: stickyHeader ? "sticky" : "relative",
-                      top: 0,
-                      zIndex: 2,
-                      ...headerSx,
-                    }}
-                    style={getColumnStyle(col)}
-                  >
-                    <motion.span
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
+                {allColumns.map((col) => {
+                  const isSortable =
+                    sortableEnabled &&
+                    col.key !== ACTION_KEY &&
+                    col.key !== SR_NO_KEY &&
+                    col.sortable !== false;
+                  const isActiveSort = sortKey === col.key && isSortable;
+
+                  return (
+                    <TableCell
+                      key={String(col.key)}
+                      align={
+                        col.align ||
+                        (col.key === SR_NO_KEY ? "center" : textAlign)
+                      }
+                      onClick={
+                        isSortable ? () => handleSortClick(col) : undefined
+                      }
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: 11.5,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        bgcolor: palette.headerBg,
+                        color: palette.headerText,
+                        borderBottom: `1px solid ${palette.headerBorder}`,
+                        whiteSpace: "nowrap",
+                        position: stickyHeader ? "sticky" : "relative",
+                        top: 0,
+                        zIndex: 2,
+                        py: 1.5,
+                        px: 2,
+                        userSelect: "none",
+                        cursor: isSortable ? "pointer" : "default",
+                        transition: "color 0.15s ease",
+                        "&:hover": isSortable
+                          ? { color: palette.titleColor }
+                          : undefined,
+                        ...styles?.header,
+                      }}
+                      style={getColumnStyle(col)}
                     >
-                      {col.label}
-                    </motion.span>
-                  </TableCell>
-                ))}
+                      <Box
+                        sx={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 0.5,
+                          justifyContent:
+                            col.align === "right"
+                              ? "flex-end"
+                              : col.align === "center"
+                                ? "center"
+                                : "flex-start",
+                          width: "100%",
+                        }}
+                      >
+                        {col.label}
+                        {isSortable && (
+                          <Box
+                            sx={{
+                              display: "inline-flex",
+                              color: isActiveSort
+                                ? theme.palette.primary.main
+                                : alpha(palette.headerText, 0.5),
+                              ml: 0.25,
+                            }}
+                          >
+                            {!isActiveSort ? (
+                              <IconSelector size={13} />
+                            ) : sortDir === "asc" ? (
+                              <IconArrowUp size={13} />
+                            ) : (
+                              <IconArrowDown size={13} />
+                            )}
+                          </Box>
+                        )}
+                      </Box>
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             </TableHead>
 
@@ -543,54 +1000,81 @@ const paginatedData = useMemo(
                 {paginatedData.length === 0 ? (
                   <motion.tr
                     key="empty"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
                     <TableCell
                       colSpan={allColumns.length + (enableCheckbox ? 1 : 0)}
                       align="center"
-                      sx={{ py: 12 }}
+                      sx={{ py: 10, borderBottom: "none" }}
                     >
-                      <Fade in={true} timeout={800}>
+                      <Fade in timeout={400}>
                         <Box
                           sx={{
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
                             justifyContent: "center",
-                            gap: 2,
+                            gap: 1.5,
                           }}
                         >
-                          {emptyStateIcon || (
+                          {emptyIcon || (
                             <IconFilterOff
-                              size={64}
-                              style={{
-                                color: theme.palette.text.secondary,
-                                opacity: 0.5,
-                              }}
+                              size={48}
+                              style={{ color: palette.emptyIcon }}
                             />
                           )}
                           <Typography
-                            variant="h6"
-                            color="text.secondary"
-                            sx={{ fontWeight: 500 }}
+                            sx={{
+                              fontWeight: 600,
+                              fontSize: 15,
+                              color: palette.titleColor,
+                            }}
                           >
-                            {emptyStateMessage}
+                            {emptyMessage}
                           </Typography>
-                          {search && (
-                            <Chip
-                              label={`No results for "${search}"`}
-                              onDelete={() => {
-                                setSearch("");
-                                searchInputRef.current?.focus();
+                          {emptyDescription && (
+                            <Typography
+                              sx={{
+                                color: palette.subtitleColor,
+                                fontSize: 13,
+                                maxWidth: 380,
                               }}
+                            >
+                              {emptyDescription}
+                            </Typography>
+                          )}
+                          {emptyAction && (
+                            <Box
+                              component="button"
+                              onClick={emptyAction.onClick}
                               sx={{
                                 mt: 1,
-                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 0.75,
+                                px: 2,
+                                py: 0.75,
+                                borderRadius: 2,
+                                border: `1px solid ${theme.palette.primary.main}`,
+                                bgcolor: "transparent",
                                 color: theme.palette.primary.main,
+                                fontWeight: 600,
+                                fontSize: 13,
+                                cursor: "pointer",
+                                transition: "all 0.15s ease",
+                                "&:hover": {
+                                  bgcolor: alpha(
+                                    theme.palette.primary.main,
+                                    0.08,
+                                  ),
+                                },
                               }}
-                            />
+                            >
+                              {emptyAction.icon}
+                              {emptyAction.label}
+                            </Box>
                           )}
                         </Box>
                       </Fade>
@@ -601,39 +1085,53 @@ const paginatedData = useMemo(
                     const rowId = resolveRowId(row, index);
                     const isSelected = selectedIds.has(rowId);
                     const globalSrNo = getGlobalIndex(index);
+                    const zebra = index % 2 === 1;
+                    const baseBg = isSelected
+                      ? palette.rowSelected
+                      : zebra
+                        ? palette.rowAlt
+                        : palette.paperBg;
 
                     return (
                       <motion.tr
                         key={rowId}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                        style={{
-                          backgroundColor: isSelected
-                            ? alpha(theme.palette.primary.main, 0.08)
-                            : "transparent",
-                          transition: "all 0.3s ease",
-                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        onClick={
+                          isWholeRowClickable
+                            ? () => onRowClickInternal(row, index)
+                            : undefined
+                        }
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = alpha(
-                            theme.palette.grey[200],
-                            0.6,
-                          );
+                          e.currentTarget.style.backgroundColor =
+                            palette.rowHover;
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = isSelected
-                            ? alpha(theme.palette.primary.main, 0.08)
-                            : "transparent";
+                          e.currentTarget.style.backgroundColor = baseBg;
+                        }}
+                        style={{
+                          backgroundColor: baseBg,
+                          transition: "background-color 0.15s ease",
+                          cursor: isWholeRowClickable ? "pointer" : undefined,
                         }}
                       >
                         {enableCheckbox && (
-                          <TableCell padding="checkbox" sx={{ width: 48 }}>
+                          <TableCell
+                            padding="checkbox"
+                            onClick={(e) => e.stopPropagation()}
+                            sx={{ width: 44, py: 1.25, px: 2 }}
+                          >
                             <Checkbox
+                              size="small"
                               checked={isSelected}
-                              onChange={() => toggleRow(row, index)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                toggleRow(row, index);
+                              }}
                               sx={{
-                                color: theme.palette.text.secondary,
+                                color: palette.cellMuted,
                                 "&.Mui-checked": {
                                   color: theme.palette.primary.main,
                                 },
@@ -643,34 +1141,47 @@ const paginatedData = useMemo(
                         )}
 
                         {allColumns.map((col) => {
+                          const cellClickable = isCellClickable(col.key);
+                          const cellHandlers = cellClickable
+                            ? {
+                                onClick: (e: MouseEvent) =>
+                                  onCellClickInternal(e, row, index),
+                              }
+                            : {};
+
+                          const cellBaseSx: SxProps<Theme> = {
+                            py: 1.5,
+                            px: 2,
+                            fontSize: 13.5,
+                            color: palette.cellText,
+                            borderBottom: `1px solid ${palette.cellBorder}`,
+                            whiteSpace: "normal",
+                            wordBreak: "break-word",
+                            ...(cellClickable ? clickableCellSx : {}),
+                          };
+
                           if (col.key === SR_NO_KEY) {
                             return (
                               <TableCell
                                 key={String(col.key)}
                                 align="center"
+                                {...cellHandlers}
                                 sx={{
-                                  py: 1.5,
-                                  fontWeight: 600,
-                                  fontSize: { xs: 12, sm: 14 },
-                                  color: theme.palette.text.primary,
-                                  backgroundColor: alpha(
-                                    theme.palette.primary.main,
-                                    0.02,
-                                  ),
+                                  ...cellBaseSx,
+                                  fontWeight: 500,
+                                  color: palette.cellMuted,
                                   whiteSpace: "nowrap",
-                                  width: 70,
+                                  width: 60,
                                 }}
                               >
-                                {globalSrNo}
+                                <span className="clickable-cell-text">
+                                  {globalSrNo}
+                                </span>
                               </TableCell>
                             );
                           }
 
-                          if (
-                            dropdown &&
-                            col.key === dropdown.key &&
-                            col.key !== ACTION_KEY
-                          ) {
+                          if (dropdown && col.key === dropdown.key) {
                             const isDisabled =
                               typeof dropdown.disabled === "function"
                                 ? dropdown.disabled(row)
@@ -679,14 +1190,15 @@ const paginatedData = useMemo(
                               <TableCell
                                 key={String(col.key)}
                                 align={textAlign}
-                                sx={{ py: 1.5, whiteSpace: "nowrap" }}
+                                onClick={(e) => e.stopPropagation()}
+                                sx={{ ...cellBaseSx, whiteSpace: "nowrap" }}
                               >
                                 <Select
                                   size="small"
                                   value={row[col.key] as string}
                                   disabled={isDisabled}
                                   sx={{
-                                    ...DEFAULT_DROPDOWN_SX,
+                                    ...dropdownSx,
                                     width: dropdown.width ?? 150,
                                     ...dropdown.sx,
                                   }}
@@ -725,18 +1237,23 @@ const paginatedData = useMemo(
                               <TableCell
                                 key={ACTION_KEY}
                                 align="center"
-                                sx={{ whiteSpace: "nowrap", py: 1, px: 1 }}
+                                onClick={(e) => e.stopPropagation()}
+                                sx={{
+                                  ...cellBaseSx,
+                                  whiteSpace: "nowrap",
+                                  py: 1,
+                                  px: 1.5,
+                                }}
                               >
                                 <Box
-                                  
-                                  
-                                  sx={{ minWidth: "fit-content",display:"flex",gap:0.75,
-                                  justifyContent:"center",
-                                  alignItems:"center" }}
+                                  sx={{
+                                    display: "flex",
+                                    gap: 0.25,
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                  }}
                                 >
-                                  {customActionButton &&
-                                    customActionButton(row)}{" "}
-                                  {/* MOVED HERE - FIRST */}
+                                  {customActionButton?.(row)}
                                   {actions &&
                                     Object.entries(iconMap).map(([k, cfg]) =>
                                       actions[k as keyof typeof iconMap] ? (
@@ -746,32 +1263,28 @@ const paginatedData = useMemo(
                                           arrow
                                           placement="top"
                                         >
-                                          <motion.div
-                                            whileHover={{ scale: 1.1 }}
-                                            whileTap={{ scale: 0.95 }}
-                                          >
-                                            <IconButton
-                                              size="small"
-                                              onClick={() =>
-                                                actions[
-                                                  k as keyof typeof iconMap
-                                                ]?.(row)
-                                              }
-                                              sx={{
+                                          <IconButton
+                                            size="small"
+                                            onClick={() =>
+                                              actions[
+                                                k as keyof typeof iconMap
+                                              ]?.(row)
+                                            }
+                                            sx={{
+                                              color: palette.cellMuted,
+                                              p: 0.75,
+                                              transition: "all 0.15s ease",
+                                              "&:hover": {
                                                 color: cfg.color,
-                                                transition: "all 0.2s ease",
-                                                p: 0.75,
-                                                "&:hover": {
-                                                  bgcolor: alpha(
-                                                    cfg.color,
-                                                    0.1,
-                                                  ),
-                                                },
-                                              }}
-                                            >
-                                              {cfg.icon}
-                                            </IconButton>
-                                          </motion.div>
+                                                bgcolor: alpha(
+                                                  cfg.color,
+                                                  isDark ? 0.15 : 0.08,
+                                                ),
+                                              },
+                                            }}
+                                          >
+                                            {cfg.icon}
+                                          </IconButton>
                                         </Tooltip>
                                       ) : null,
                                     )}
@@ -784,17 +1297,15 @@ const paginatedData = useMemo(
                             <TableCell
                               key={String(col.key)}
                               align={col.align || textAlign}
-                              sx={{
-                                py: 1.5,
-                                fontSize: { xs: 12, sm: 14 },
-                                whiteSpace: "normal",
-                                wordBreak: "break-word",
-                              }}
+                              {...cellHandlers}
+                              sx={cellBaseSx}
                               style={getColumnStyle(col)}
                             >
-                              {col.render
-                                ? col.render(row, index)
-                                : highlightText(String(row[col.key] ?? ""))}
+                              <span className="clickable-cell-text">
+                                {col.render
+                                  ? col.render(row, index)
+                                  : highlightText(String(row[col.key] ?? ""))}
+                              </span>
                             </TableCell>
                           );
                         })}
@@ -814,9 +1325,11 @@ const paginatedData = useMemo(
                         key={cellIdx}
                         colSpan={cell.colSpan}
                         sx={{
-                          bgcolor: alpha(theme.palette.primary.main, 0.05),
+                          bgcolor: palette.footerBg,
                           fontWeight: 600,
-                          borderTop: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                          color: palette.cellText,
+                          fontSize: 13,
+                          borderTop: `1px solid ${palette.cellBorder}`,
                         }}
                       >
                         {cell.value}
@@ -832,67 +1345,123 @@ const paginatedData = useMemo(
         <Box
           sx={{
             display: "flex",
-            justifyContent:
-              enableCheckbox && selectedRows.length > 0
-                ? "space-between"
-                : "flex-end",
+            justifyContent: "space-between",
             alignItems: "center",
-            px: { xs: 1, sm: 2 },
+            px: { xs: 1.5, sm: 2 },
             py: 1,
-            borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-            bgcolor: alpha(theme.palette.background.default, 0.3),
+            borderTop: `1px solid ${palette.toolbarBorder}`,
+            bgcolor: palette.toolbarBg,
             flexWrap: "wrap",
             gap: 1,
           }}
         >
-          {enableCheckbox && selectedRows.length > 0 && onDeleteSelected && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-            >
-              <Tooltip
-                title={
-                  selectedRows.length === data.length
-                    ? "Delete All Records"
-                    : `Delete ${selectedRows.length} record${selectedRows.length > 1 ? "s" : ""}`
-                }
-                arrow
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {enableCheckbox && selectedRows.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
               >
-                <IconButton
-                  color="error"
-                  onClick={() => {
-                    onDeleteSelected(selectedRows);
-                    setSelectedIds(new Set());
-                  }}
+                <Box
                   sx={{
-                    transition: "all 0.2s ease",
-                    "&:hover": {
-                      transform: "scale(1.05)",
-                      bgcolor: alpha(theme.palette.error.main, 0.1),
-                    },
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    pl: 0.5,
+                    pr: 1.5,
+                    py: 0.5,
+                    borderRadius: 2,
+                    bgcolor: palette.chipBg,
                   }}
                 >
-                  <IconTrashX size={20} />
-                </IconButton>
-              </Tooltip>
-            </motion.div>
-          )}
+                  <Typography
+                    sx={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: palette.chipText,
+                      mx: 1,
+                    }}
+                  >
+                    {selectedRows.length} selected
+                  </Typography>
+                  {bulkActions?.map((action) => (
+                    <Tooltip key={action.key} title={action.label} arrow>
+                      <IconButton
+                        size="small"
+                        onClick={() => action.onClick(selectedRows)}
+                        sx={{
+                          color: action.color ?? theme.palette.primary.main,
+                          p: 0.5,
+                          "&:hover": {
+                            bgcolor: alpha(
+                              action.color ?? theme.palette.primary.main,
+                              0.12,
+                            ),
+                          },
+                        }}
+                      >
+                        {action.icon}
+                      </IconButton>
+                    </Tooltip>
+                  ))}
+                  {onDeleteSelected && (
+                    <Tooltip
+                      title={`Delete ${selectedRows.length} record${
+                        selectedRows.length > 1 ? "s" : ""
+                      }`}
+                      arrow
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          onDeleteSelected(selectedRows);
+                          clearSelection();
+                        }}
+                        sx={{
+                          color: theme.palette.error.main,
+                          p: 0.5,
+                          "&:hover": {
+                            bgcolor: alpha(theme.palette.error.main, 0.12),
+                          },
+                        }}
+                      >
+                        <IconTrashX size={16} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
+              </motion.div>
+            )}
+          </Box>
+
           <TablePagination
             component="div"
-            count={filteredData.length}
-            page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            rowsPerPage={rowsPerPage}
+            count={totalCount}
+            page={effectivePage}
+            onPageChange={(_, newPage) => {
+              if (isServer) {
+                serverOnPageChange?.(newPage);
+              } else {
+                setClientPage(newPage);
+              }
+            }}
+            rowsPerPage={effectivePageSize}
             rowsPerPageOptions={[]}
             sx={{
               border: "none",
               "& .MuiTablePagination-displayedRows": {
-                fontSize: { xs: 11, sm: 13 },
+                fontSize: 12.5,
+                color: palette.subtitleColor,
+                fontWeight: 500,
               },
-              "& .MuiIconButton-root": {
-                transition: "all 0.2s ease",
-                "&:hover": { transform: "scale(1.1)" },
+              "& .MuiTablePagination-actions .MuiIconButton-root": {
+                color: palette.cellMuted,
+                transition: "all 0.15s ease",
+                "&:hover": {
+                  color: theme.palette.primary.main,
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                },
+                "&.Mui-disabled": { color: alpha(palette.cellMuted, 0.4) },
               },
             }}
           />
@@ -901,3 +1470,5 @@ const paginatedData = useMemo(
     </motion.div>
   );
 }
+
+export default UniversalTable;

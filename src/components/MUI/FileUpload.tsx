@@ -1,7 +1,13 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable react-hooks/preserve-manual-memoization */
 /* eslint-disable react-hooks/immutability */
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   Box,
   IconButton,
@@ -19,6 +25,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  useTheme,
 } from "@mui/material";
 import {
   Delete,
@@ -65,6 +72,7 @@ const SIZE_TOKENS: Record<
     dropFontSize: string;
     countFontSize: string;
     fileIconSize: number;
+    actionBtnSize: number;   // ← renamed from actionIconSize (clearer)
     actionIconSize: number;
     gap: number;
   }
@@ -75,7 +83,8 @@ const SIZE_TOKENS: Record<
     dropFontSize: "0.7rem",
     countFontSize: "0.6rem",
     fileIconSize: 22,
-    actionIconSize: 16,
+    actionBtnSize: 26,       // ← was 32 fixed
+    actionIconSize: 14,      // ← was 18 fixed
     gap: 0.75,
   },
   medium: {
@@ -84,7 +93,8 @@ const SIZE_TOKENS: Record<
     dropFontSize: "0.8rem",
     countFontSize: "0.7rem",
     fileIconSize: 28,
-    actionIconSize: 18,
+    actionBtnSize: 32,
+    actionIconSize: 16,
     gap: 1,
   },
   large: {
@@ -93,13 +103,16 @@ const SIZE_TOKENS: Record<
     dropFontSize: "0.9rem",
     countFontSize: "0.8rem",
     fileIconSize: 34,
-    actionIconSize: 22,
+    actionBtnSize: 38,
+    actionIconSize: 18,
     gap: 1.25,
   },
 };
 
-// ─── Document type helpers ──────────────────────────────────────
-const DOC_META: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
+const DOC_META: Record<
+  string,
+  { icon: React.ReactNode; color: string; label: string }
+> = {
   pdf: { icon: <PictureAsPdf />, color: "#dc2626", label: "PDF" },
   doc: { icon: <DescriptionIcon />, color: "#2563eb", label: "DOC" },
   docx: { icon: <DescriptionIcon />, color: "#2563eb", label: "DOCX" },
@@ -155,12 +168,10 @@ const isImage = (file: File | string): boolean => {
   return /\.(png|jpe?g|webp|gif|svg)$/i.test(file);
 };
 
-// Preview supported: PDF (iframe) + Images (img)
 const isPreviewable = (file: File | string): boolean => {
   return isPDF(file) || isImage(file);
 };
 
-// ─── Component ──────────────────────────────────────────────────
 const FileUpload: React.FC<FileUploadProps> = ({
   name,
   label,
@@ -175,6 +186,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
   maxSizeMB = 10,
   size = "small",
 }) => {
+  /* ────────────────────────────────────────────────────────── */
+  /*  THEME — with safe fallback for apps without dark mode     */
+  /* ────────────────────────────────────────────────────────── */
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   const {
     setValue,
     watch,
@@ -187,18 +204,75 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const formFiles = watch(name) as (File | string)[] | undefined;
 
-  const [previews, setPreviews] = useState<{ url: string; file: File | string }[]>([]);
+  const [previews, setPreviews] = useState<
+    { url: string; file: File | string }[]
+  >([]);
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [deletedFiles, setDeletedFiles] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState<boolean>(false);
-  const [previewFile, setPreviewFile] = useState<{ url: string; file: File | string } | null>(null);
+  const [previewFile, setPreviewFile] = useState<{
+    url: string;
+    file: File | string;
+  } | null>(null);
 
   const initialized = useRef(false);
   const errorMessage = errors[name]?.message as string;
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
-  // ─── Safe getter ────────────────────────────────────────────
+  /* ────────────────────────────────────────────────────────── */
+  /*  PALETTE                                                   */
+  /* ────────────────────────────────────────────────────────── */
+  const palette = useMemo(() => {
+    const t = theme.palette;
+    return {
+      containerBg: t.background.paper,
+      containerBorder: t.divider,
+      containerBorderActive: t.primary.main,
+      containerBorderError: t.error.main,
+      containerBgDrag: alpha(t.primary.main, isDark ? 0.06 : 0.03),
+      containerBgDisabled: alpha(t.action.disabledBackground, 0.4),
+
+      dropText: t.text.secondary,
+      dropTextDisabled: t.text.disabled,
+      dropIcon: t.text.disabled,
+      dropIconActive: t.primary.main,
+      dropHoverBg: alpha(t.primary.main, 0.02),
+
+      fileListBg: isDark
+        ? alpha(t.common.white, 0.015)
+        : alpha(t.common.black, 0.008),
+      fileRowBg: isDark ? alpha(t.common.white, 0.02) : "#ffffff",
+      fileRowBorder: t.divider,
+      fileRowBorderHover: t.primary.main,
+      fileRowShadowHover: isDark
+        ? `0 2px 8px ${alpha(t.common.black, 0.4)}`
+        : `0 2px 8px ${alpha(t.common.black, 0.08)}`,
+
+      fileName: t.text.primary,
+      fileMeta: t.text.secondary,
+
+      previewBtnBg: alpha(t.primary.main, 0.08),
+      previewBtnIcon: t.primary.main,
+
+      deleteBtnBg: alpha(t.error.main, 0.08),
+      deleteBtnIcon: t.error.main,
+
+      successColor: t.success.main,
+
+      dialogHeaderBg: t.background.paper,
+      dialogBorder: t.divider,
+      dialogTitle: t.text.primary,
+      dialogText: t.text.secondary,
+      dialogPreviewBg: isDark
+        ? alpha(t.common.black, 0.2)
+        : alpha(t.common.black, 0.02),
+
+      doneBtnBg: t.primary.main,
+      doneBtnHoverBg: t.primary.dark,
+    };
+  }, [theme, isDark]);
+
   const getSafeFilesArray = useCallback((): (File | string)[] => {
     if (!formFiles) return [];
     if (Array.isArray(formFiles)) return formFiles;
@@ -212,7 +286,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
     return file;
   }, []);
 
-  // ─── Default files (with reset support) ─────────────────────
   useEffect(() => {
     if (!defaultFiles || defaultFiles.length === 0) return;
     if (initialized.current) return;
@@ -224,7 +297,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
     });
   }, [defaultFiles, name, setValue]);
 
-  // ─── Sync previews with form value ──────────────────────────
   useEffect(() => {
     const files = getSafeFilesArray();
     if (!files || files.length === 0) {
@@ -247,27 +319,38 @@ const FileUpload: React.FC<FileUploadProps> = ({
       });
     };
   }, [getSafeFilesArray, generatePreview]);
+const validateSingleFile = useCallback(
+  (file: File): string | null => {
+    if (file.size > maxSizeBytes) {
+      return `${file.name}: Max ${maxSizeMB}MB file allowed`;
+    }
 
-  // ─── Validate single file ───────────────────────────────────
-  const validateSingleFile = useCallback(
-    (file: File): string | null => {
-      if (file.size > maxSizeBytes) {
-        return `${file.name}: Max ${maxSizeMB}MB file allowed`;
+    const acceptedTypes = accept.split(",").map((t) => t.trim().toLowerCase());
+    const fileType = (file.type || "").toLowerCase();
+    const fileName = (file.name || "").toLowerCase();
+    const fileExt = fileName.includes(".")
+      ? `.${fileName.split(".").pop()}`
+      : "";
+
+    const isTypeMatch = acceptedTypes.some((type) => {
+      if (type.endsWith("/*")) {
+        return fileType.startsWith(type.replace("/*", "/"));
       }
-      const acceptedTypes = accept.split(",").map((t) => t.trim());
-      const isTypeMatch = acceptedTypes.some((type) => {
-        if (type.endsWith("/*")) {
-          return file.type.startsWith(type.replace("/*", "/"));
-        }
-        return file.type === type;
-      });
-      if (!isTypeMatch) {
-        return `${file.name}: Unsupported file format`;
+      if (fileType && fileType === type) return true;
+      if (type.startsWith(".") && fileExt && fileExt === type) return true;
+      if (!type.includes("/") && !type.startsWith(".") && fileExt) {
+        return fileExt === `.${type}`;
       }
-      return null;
-    },
-    [maxSizeBytes, maxSizeMB, accept]
-  );
+      return false;
+    });
+
+    if (!isTypeMatch) {
+      return `${file.name}: Unsupported file format`;
+    }
+    return null;
+  },
+  [maxSizeBytes, maxSizeMB, accept],
+);
 
   const validateFiles = useCallback(
     (files: File[]): { valid: File[]; errors: string[] } => {
@@ -281,10 +364,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
       }
       return { valid, errors };
     },
-    [validateSingleFile]
+    [validateSingleFile],
   );
 
-  // ─── Add files to form ──────────────────────────────────────
   const addFilesToForm = useCallback(
     (files: File[]) => {
       const currentFiles = getSafeFilesArray();
@@ -294,10 +376,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
         shouldDirty: true,
       });
     },
-    [getSafeFilesArray, name, setValue]
+    [getSafeFilesArray, name, setValue],
   );
 
-  // ─── Process files ──────────────────────────────────────────
   const processFiles = useCallback(
     async (files: File[]): Promise<void> => {
       if (files.length === 0) return;
@@ -320,11 +401,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       try {
         setUploadProgress(40);
-        await new Promise((r) => setTimeout(r, 250)); // simulate
+        await new Promise((r) => setTimeout(r, 250));
         setUploadProgress(80);
         addFilesToForm(filesToAdd);
         setUploadProgress(100);
-        showSnackbar("success", `${filesToAdd.length} file(s) uploaded successfully`);
+        showSnackbar(
+          "success",
+          `${filesToAdd.length} file(s) uploaded successfully`,
+        );
       } catch (error) {
         console.error("Upload error:", error);
         showSnackbar("error", "Failed to upload files");
@@ -335,10 +419,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
         }, 300);
       }
     },
-    [getSafeFilesArray, maxFiles, addFilesToForm]
+    [getSafeFilesArray, maxFiles, addFilesToForm],
   );
 
-  // ─── File input change ──────────────────────────────────────
   const handleFileChange = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
       const files = event.target.files;
@@ -358,22 +441,24 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       event.target.value = "";
     },
-    [disabled, validateFiles, processFiles]
+    [disabled, validateFiles, processFiles],
   );
 
-  // ─── Drag and drop ──────────────────────────────────────────
   const handleDragOver = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       if (!disabled) setDragActive(true);
     },
-    [disabled]
+    [disabled],
   );
 
-  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragActive(false);
-  }, []);
+  const handleDragLeave = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setDragActive(false);
+    },
+    [],
+  );
 
   const handleDrop = useCallback(
     async (event: React.DragEvent<HTMLDivElement>) => {
@@ -391,10 +476,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
       }
       if (valid.length > 0) await processFiles(valid);
     },
-    [disabled, validateFiles, processFiles]
+    [disabled, validateFiles, processFiles],
   );
 
-  // ─── Remove file ────────────────────────────────────────────
   const handleRemoveFile = useCallback(
     (index: number, e: React.MouseEvent<HTMLButtonElement>): void => {
       e.stopPropagation();
@@ -416,14 +500,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
       const { name: fileName } = getFileMeta(removed);
       showSnackbar("error", `${fileName} deleted`);
     },
-    [getSafeFilesArray, name, setValue]
+    [getSafeFilesArray, name, setValue],
   );
 
   const handleUploadClick = useCallback((): void => {
     if (!disabled) fileInputRef.current?.click();
   }, [disabled]);
 
-  // ─── Preview ────────────────────────────────────────────────
   const handleOpenPreview = useCallback(
     (item: { url: string; file: File | string }) => {
       if (isPreviewable(item.file)) {
@@ -432,20 +515,20 @@ const FileUpload: React.FC<FileUploadProps> = ({
         showSnackbar("info", "Preview not available for this file type");
       }
     },
-    []
+    [],
   );
 
   const handleClosePreview = useCallback(() => setPreviewFile(null), []);
 
-  // ─── Deleted files sync ─────────────────────────────────────
   useEffect(() => {
     if (deletedFiles.length === 0) return;
     setValue("deletedFiles", deletedFiles as unknown, { shouldDirty: true });
   }, [deletedFiles, setValue]);
 
-  // ─── RHF register ───────────────────────────────────────────
   register(name, {
-    required: required ? `${label || placeholder || "File"} is required` : false,
+    required: required
+      ? `${label || placeholder || "File"} is required`
+      : false,
     validate: {
       maxFiles: (value: unknown) => {
         const arr = value as (File | string)[] | undefined;
@@ -457,7 +540,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   const currentFilesCount = getSafeFilesArray().length;
 
-  // ─── Preview metadata (memoized, single source) ─────────────
   const previewMeta = useMemo(() => {
     if (!previewFile) return null;
     const meta = getFileMeta(previewFile.file);
@@ -482,7 +564,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
           >
             {label}
             {required && (
-              <Typography component="span" sx={{ color: "error.main", ml: 0.3, fontSize: "0.75rem" }}>
+              <Typography
+                component="span"
+                sx={{ color: "error.main", ml: 0.3, fontSize: "0.75rem" }}
+              >
                 *
               </Typography>
             )}
@@ -492,14 +577,23 @@ const FileUpload: React.FC<FileUploadProps> = ({
         <Paper
           variant="outlined"
           sx={{
-            border: `1.5px solid ${dragActive ? "#1976d2" : errorMessage ? "#dc2626" : "#e2e8f0"}`,
+            border: `1.5px solid ${
+              dragActive
+                ? palette.containerBorderActive
+                : errorMessage
+                  ? palette.containerBorderError
+                  : palette.containerBorder
+            }`,
             borderRadius: 1,
-            bgcolor: dragActive ? alpha("#1976d2", 0.02) : disabled ? alpha("#000", 0.02) : "#fff",
+            bgcolor: dragActive
+              ? palette.containerBgDrag
+              : disabled
+                ? palette.containerBgDisabled
+                : palette.containerBg,
             transition: "all 0.2s",
             overflow: "hidden",
           }}
         >
-          {/* ─── Drop zone ──────────────────────────────────── */}
           <Box
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -507,7 +601,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
             sx={{
               p: tokens.rowPadding,
               opacity: disabled ? 0.6 : 1,
-              borderBottom: previews.length > 0 ? "1px solid #e2e8f0" : "none",
+              borderBottom:
+                previews.length > 0
+                  ? `1px solid ${palette.containerBorder}`
+                  : "none",
               transition: "all 0.2s",
             }}
           >
@@ -522,32 +619,58 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 borderRadius: 1,
                 py: 1,
                 "&:hover": {
-                  bgcolor: !disabled && !dragActive ? alpha("#1976d2", 0.02) : undefined,
+                  bgcolor:
+                    !disabled && !dragActive ? palette.dropHoverBg : undefined,
                 },
               }}
             >
               {uploading ? (
                 <>
-                  <CircularProgress size={tokens.dropIconSize} thickness={4} sx={{ color: "#1976d2" }} />
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: tokens.countFontSize }}>
+                  <CircularProgress
+                    size={tokens.dropIconSize}
+                    thickness={4}
+                    sx={{ color: palette.dropIconActive }}
+                  />
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontSize: tokens.countFontSize }}
+                  >
                     {uploadProgress}%
                   </Typography>
                 </>
               ) : (
                 <>
-                  <CloudUpload sx={{ fontSize: tokens.dropIconSize, color: dragActive ? "#1976d2" : "#94a3b8" }} />
+                  <CloudUpload
+                    sx={{
+                      fontSize: tokens.dropIconSize,
+                      color: dragActive
+                        ? palette.dropIconActive
+                        : palette.dropIcon,
+                    }}
+                  />
                   <Typography
                     variant="caption"
                     noWrap
                     sx={{
-                      color: disabled ? "text.disabled" : "text.secondary",
+                      color: disabled
+                        ? palette.dropTextDisabled
+                        : palette.dropText,
                       fontWeight: 500,
                       fontSize: tokens.dropFontSize,
                     }}
                   >
-                    {dragActive ? "Drop files here" : placeholder || "Upload documents"}
+                    {dragActive
+                      ? "Drop files here"
+                      : placeholder || "Upload documents"}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: "#94a3b8", fontSize: tokens.countFontSize }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: palette.dropIcon,
+                      fontSize: tokens.countFontSize,
+                    }}
+                  >
                     ({currentFilesCount}/{maxFiles})
                   </Typography>
                 </>
@@ -555,11 +678,16 @@ const FileUpload: React.FC<FileUploadProps> = ({
             </Box>
           </Box>
 
-          {/* ─── File list ──────────────────────────────────── */}
           {previews.length > 0 && (
             <Grow in={true}>
-              <Box sx={{ p: tokens.rowPadding, bgcolor: alpha("#f8fafc", 0.5) }}>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: tokens.gap }}>
+              <Box sx={{ p: tokens.rowPadding, bgcolor: palette.fileListBg }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: tokens.gap,
+                  }}
+                >
                   <AnimatePresence>
                     {previews.map((item, index) => {
                       const meta = getFileMeta(item.file);
@@ -581,16 +709,15 @@ const FileUpload: React.FC<FileUploadProps> = ({
                               gap: 1,
                               p: 1,
                               borderRadius: 1,
-                              border: "1px solid #e2e8f0",
-                              bgcolor: "#fff",
+                              border: `1px solid ${palette.fileRowBorder}`,
+                              bgcolor: palette.fileRowBg,
                               transition: "all 0.2s",
                               "&:hover": {
-                                borderColor: "#1976d2",
-                                boxShadow: 1,
+                                borderColor: palette.fileRowBorderHover,
+                                boxShadow: palette.fileRowShadowHover,
                               },
                             }}
                           >
-                            {/* File icon */}
                             <Box
                               sx={{
                                 width: tokens.fileIconSize + 8,
@@ -608,16 +735,19 @@ const FileUpload: React.FC<FileUploadProps> = ({
                               {meta.icon}
                             </Box>
 
-                            {/* File info */}
                             <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Tooltip title={meta.name} arrow placement="top-start">
+                              <Tooltip
+                                title={meta.name}
+                                arrow
+                                placement="top-start"
+                              >
                                 <Typography
                                   variant="caption"
                                   sx={{
                                     display: "block",
                                     fontWeight: 600,
                                     fontSize: tokens.dropFontSize,
-                                    color: "text.primary",
+                                    color: palette.fileName,
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
                                     whiteSpace: "nowrap",
@@ -627,7 +757,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
                                   {meta.name}
                                 </Typography>
                               </Tooltip>
-                              <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 0.2 }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  gap: 1,
+                                  alignItems: "center",
+                                  mt: 0.2,
+                                }}
+                              >
                                 <Typography
                                   variant="caption"
                                   sx={{
@@ -644,7 +781,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                                     variant="caption"
                                     sx={{
                                       fontSize: tokens.countFontSize,
-                                      color: "text.secondary",
+                                      color: palette.fileMeta,
                                     }}
                                   >
                                     • {sizeLabel}
@@ -653,42 +790,67 @@ const FileUpload: React.FC<FileUploadProps> = ({
                               </Box>
                             </Box>
 
-                            {/* Actions */}
                             {!disabled && (
-                              <Box sx={{ display: "flex", gap: 0.5, flexShrink: 0 }}>
-                                {canPreview && (
-                                  <Tooltip title="Preview" arrow>
-                                    <IconButton
-                                      size="small"
-                                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                                        e.stopPropagation();
-                                        handleOpenPreview(item);
-                                      }}
-                                      sx={{
-                                        width: tokens.actionIconSize + 10,
-                                        height: tokens.actionIconSize + 10,
-                                        "&:hover": { bgcolor: alpha("#1976d2", 0.08) },
-                                      }}
-                                    >
-                                      <Visibility sx={{ fontSize: tokens.actionIconSize, color: "#1976d2" }} />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
-                                <Tooltip title="Remove" arrow>
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
-                                      handleRemoveFile(index, e)
-                                    }
-                                    sx={{
-                                      width: tokens.actionIconSize + 10,
-                                      height: tokens.actionIconSize + 10,
-                                      "&:hover": { bgcolor: alpha("#dc2626", 0.08) },
-                                    }}
-                                  >
-                                    <Delete sx={{ fontSize: tokens.actionIconSize, color: "#dc2626" }} />
-                                  </IconButton>
-                                </Tooltip>
+                            <Box
+  sx={{
+    display: "flex",
+    gap: 0.75,
+    flexShrink: 0,
+    alignItems: "center",
+    pl: 1,
+    ml: 0.5,
+    borderLeft: `1px solid ${palette.fileRowBorder}`,
+  }}
+
+                              >
+                               {canPreview && (
+  <Tooltip title="Preview" arrow>
+    <IconButton
+      size="small"
+      onClick={(e) => {
+        e.stopPropagation();
+        handleOpenPreview(item);
+      }}
+      sx={{
+        width: tokens.actionBtnSize,
+        height: tokens.actionBtnSize,
+        p: 0,
+        borderRadius: 1,
+        bgcolor: palette.previewBtnBg,
+        "&:hover": {
+          bgcolor: alpha(palette.previewBtnIcon, 0.18),
+        },
+        transition: "all 0.15s ease",
+      }}
+    >
+      <Visibility
+        sx={{ fontSize: tokens.actionIconSize, color: palette.previewBtnIcon }}
+      />
+    </IconButton>
+  </Tooltip>
+)}
+                              <Tooltip title="Remove" arrow>
+  <IconButton
+    size="small"
+    onClick={(e) => handleRemoveFile(index, e)}
+    sx={{
+      width: tokens.actionBtnSize,
+      height: tokens.actionBtnSize,
+      p: 0,
+      borderRadius: 1,
+      bgcolor: palette.deleteBtnBg,
+      color: palette.deleteBtnIcon,
+      border: `1px solid transparent`,
+      "&:hover": {
+        bgcolor: alpha(palette.deleteBtnIcon, 0.18),
+        borderColor: palette.deleteBtnIcon,
+      },
+      transition: "all 0.15s ease",
+    }}
+  >
+    <Delete sx={{ fontSize: tokens.actionIconSize }} />
+  </IconButton>
+</Tooltip>
                               </Box>
                             )}
                           </Box>
@@ -698,13 +860,28 @@ const FileUpload: React.FC<FileUploadProps> = ({
                   </AnimatePresence>
                 </Box>
 
-                {/* Info bar */}
                 {!uploading && previews.length > 0 && (
                   <Fade in={true}>
-                    <Box sx={{ mt: 1, display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <CheckCircle sx={{ fontSize: 10, color: "#16a34a" }} />
-                      <Typography variant="caption" sx={{ color: "#16a34a", fontSize: "0.6rem" }}>
-                        {previews.length} document(s) ready • Max {maxSizeMB}MB per file
+                    <Box
+                      sx={{
+                        mt: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.5,
+                      }}
+                    >
+                      <CheckCircle
+                        sx={{ fontSize: 10, color: palette.successColor }}
+                      />
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: palette.successColor,
+                          fontSize: "0.6rem",
+                        }}
+                      >
+                        {previews.length} document(s) ready • Max {maxSizeMB}MB
+                        per file
                       </Typography>
                     </Box>
                   </Fade>
@@ -727,14 +904,19 @@ const FileUpload: React.FC<FileUploadProps> = ({
         {errorMessage && (
           <Typography
             variant="caption"
-            sx={{ display: "block", mt: 0.5, ml: 1, color: "error.main", fontSize: "0.65rem" }}
+            sx={{
+              display: "block",
+              mt: 0.5,
+              ml: 1,
+              color: "error.main",
+              fontSize: "0.65rem",
+            }}
           >
             {errorMessage}
           </Typography>
         )}
       </Box>
 
-      {/* ─── Preview Dialog ─────────────────────────────────── */}
       <Dialog
         open={!!previewFile}
         onClose={handleClosePreview}
@@ -749,6 +931,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
               maxHeight: { xs: "100vh", sm: "92vh" },
               m: { xs: 0, sm: 2 },
               overflow: "hidden",
+              bgcolor: palette.dialogHeaderBg,
+              border: `1px solid ${palette.dialogBorder}`,
+              backgroundImage: "none",
             },
           },
         }}
@@ -759,8 +944,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
             alignItems: "center",
             gap: 1.5,
             p: { xs: 1.75, sm: 2.5 },
-            bgcolor: "#fff",
-            borderBottom: "1px solid #e2e8f0",
+            bgcolor: palette.dialogHeaderBg,
+            color: palette.dialogTitle,
+            borderBottom: `1px solid ${palette.dialogBorder}`,
           }}
         >
           {previewMeta && (
@@ -789,18 +975,26 @@ const FileUpload: React.FC<FileUploadProps> = ({
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
+                    color: palette.dialogTitle,
                   }}
                 >
                   {previewMeta.name}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  sx={{ color: palette.dialogText }}
+                >
                   {previewMeta.label}
                   {previewMeta.size && ` • ${previewMeta.size}`}
                 </Typography>
               </Box>
             </>
           )}
-          <IconButton onClick={handleClosePreview} size="small">
+          <IconButton
+            onClick={handleClosePreview}
+            size="small"
+            sx={{ color: palette.dialogText }}
+          >
             <CloseIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
@@ -811,7 +1005,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            bgcolor: "#f8fafc",
+            bgcolor: palette.dialogPreviewBg,
             height: { xs: "calc(100vh - 152px)", sm: "72vh" },
             position: "relative",
           }}
@@ -839,47 +1033,52 @@ const FileUpload: React.FC<FileUploadProps> = ({
             />
           )}
 
-          {previewMeta && !isPDF(previewFile!.file) && !isImage(previewFile!.file) && (
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 2,
-                p: 4,
-              }}
-            >
+          {previewMeta &&
+            !isPDF(previewFile!.file) &&
+            !isImage(previewFile!.file) && (
               <Box
                 sx={{
-                  width: 96,
-                  height: 96,
-                  borderRadius: 2,
-                  bgcolor: alpha(previewMeta.color, 0.1),
-                  color: previewMeta.color,
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  "& svg": { fontSize: 56 },
+                  gap: 2,
+                  p: 4,
                 }}
               >
-                {previewMeta.icon}
+                <Box
+                  sx={{
+                    width: 96,
+                    height: 96,
+                    borderRadius: 2,
+                    bgcolor: alpha(previewMeta.color, 0.1),
+                    color: previewMeta.color,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    "& svg": { fontSize: 56 },
+                  }}
+                >
+                  {previewMeta.icon}
+                </Box>
+                <Typography
+                  variant="body2"
+                  sx={{ color: palette.dialogText, textAlign: "center" }}
+                >
+                  Preview not available for {previewMeta.label} files.
+                  <br />
+                  Download to view the content.
+                </Typography>
               </Box>
-             <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
-  Preview not available for {previewMeta.label} files.
-  <br />
-  Download to view the content.
-</Typography>
-            </Box>
-          )}
+            )}
         </DialogContent>
 
         <DialogActions
           sx={{
             p: { xs: 1.75, sm: 2.5 },
             gap: 1.5,
-            bgcolor: "#fff",
-            borderTop: "1px solid #e2e8f0",
+            bgcolor: palette.dialogHeaderBg,
+            borderTop: `1px solid ${palette.dialogBorder}`,
             justifyContent: "center",
             flexWrap: "wrap",
           }}
@@ -890,7 +1089,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
               startIcon={<Download />}
               href={previewFile.url}
               download={getFileMeta(previewFile.file).name}
-              sx={{ borderRadius: 2, textTransform: "none", px: 3, py: 1 }}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                px: 3,
+                py: 1,
+                borderColor: palette.dialogBorder,
+                color: palette.dialogTitle,
+              }}
             >
               Download
             </Button>
@@ -899,13 +1105,19 @@ const FileUpload: React.FC<FileUploadProps> = ({
             onClick={handleClosePreview}
             variant="contained"
             startIcon={<Check />}
+            disableElevation
             sx={{
               borderRadius: 2,
               textTransform: "none",
               px: 4,
               py: 1,
-              bgcolor: "#1976d2",
-              "&:hover": { bgcolor: "#1565c0" },
+              bgcolor: palette.doneBtnBg,
+              color: theme.palette.primary.contrastText,
+              boxShadow: "none",
+              "&:hover": {
+                bgcolor: palette.doneBtnHoverBg,
+                boxShadow: "none",
+              },
             }}
           >
             Done

@@ -101,22 +101,44 @@ export interface FieldConfig {
   system?: boolean;
 }
 
-export interface FormScreenStyle {
+/* One set of colors for a single mode */
+export interface FormScreenColors {
   pageBgColor?: string;
   cardBgColor?: string;
+  titleColor?: string;
+  subtitleColor?: string;
+  submitBgColor?: string;
+  submitTextColor?: string;
+}
+
+/* Layout + content + per-mode colors */
+export interface FormScreenStyle {
+  /* Layout (shared across modes) */
   cardMaxWidth?: 'sm' | 'md' | 'lg' | 'xl';
   cardBorderRadius?: number;
   cardPadding?: number;
   cardShadow?: 0 | 1 | 2 | 3 | 4;
+
+  /* Content (shared across modes) */
   titleText?: string;
-  titleColor?: string;
   subtitleText?: string;
-  subtitleColor?: string;
   fieldGap?: number;
   submitLabel?: string;
+  loginLabel?: string;
+
+  /* Per-mode color overrides */
+  colors?: {
+    light?: FormScreenColors;
+    dark?: FormScreenColors;
+  };
+
+  /* LEGACY — kept for backward compatibility with saved configs */
+  pageBgColor?: string;
+  cardBgColor?: string;
+  titleColor?: string;
+  subtitleColor?: string;
   submitBgColor?: string;
   submitTextColor?: string;
-  loginLabel?: string;
 }
 
 export interface FormConfig {
@@ -172,6 +194,24 @@ export const DEFAULT_RESPONSIVE_LAYOUT: ResponsiveFieldLayout = {
   desktop: { ...DEFAULT_LAYOUT, colSpan: 6 },
 };
 
+export const DEFAULT_SCREEN_COLORS_LIGHT: FormScreenColors = {
+  pageBgColor: '#f8fafc',
+  cardBgColor: '#ffffff',
+  titleColor: '#0f172a',
+  subtitleColor: '#64748b',
+  submitBgColor: '#2563eb',
+  submitTextColor: '#ffffff',
+};
+
+export const DEFAULT_SCREEN_COLORS_DARK: FormScreenColors = {
+  pageBgColor: '#0f172a',
+  cardBgColor: '#111827',
+  titleColor: '#f8fafc',
+  subtitleColor: '#94a3b8',
+  submitBgColor: '#3b82f6',
+  submitTextColor: '#ffffff',
+};
+
 export const DEFAULT_SCREEN_STYLE: FormScreenStyle = {
   cardMaxWidth: 'md',
   cardBorderRadius: 12,
@@ -181,9 +221,11 @@ export const DEFAULT_SCREEN_STYLE: FormScreenStyle = {
   subtitleText: 'Fields are managed from the Form Handling tab.',
   fieldGap: 16,
   submitLabel: 'Submit',
-  submitBgColor: '',
-  submitTextColor: '',
   loginLabel: 'Login',
+  colors: {
+    light: DEFAULT_SCREEN_COLORS_LIGHT,
+    dark: DEFAULT_SCREEN_COLORS_DARK,
+  },
 };
 
 export const DEFAULT_FIELDS: FieldConfig[] = [
@@ -369,6 +411,63 @@ export function normalizeField(field: Partial<FieldConfig>, index: number): Fiel
   };
 }
 
+/* Migrate old single-color-set configs into the new dual-mode format */
+function migrateScreen(
+  incoming: Partial<FormScreenStyle> | undefined,
+): FormScreenStyle {
+  if (!incoming) return DEFAULT_SCREEN_STYLE;
+
+  /* Already new format */
+ if (incoming.colors) {
+  const lightIn = incoming.colors.light ?? {};
+  const darkIn = incoming.colors.dark ?? {};
+
+  return {
+    ...DEFAULT_SCREEN_STYLE,
+    ...incoming,
+    colors: {
+      light: {
+        ...DEFAULT_SCREEN_COLORS_LIGHT,
+        ...(lightIn.pageBgColor ? { pageBgColor: lightIn.pageBgColor } : {}),
+        ...(lightIn.cardBgColor ? { cardBgColor: lightIn.cardBgColor } : {}),
+        ...(lightIn.titleColor ? { titleColor: lightIn.titleColor } : {}),
+        ...(lightIn.subtitleColor ? { subtitleColor: lightIn.subtitleColor } : {}),
+        ...(lightIn.submitBgColor ? { submitBgColor: lightIn.submitBgColor } : {}),
+        ...(lightIn.submitTextColor ? { submitTextColor: lightIn.submitTextColor } : {}),
+      },
+      dark: {
+        ...DEFAULT_SCREEN_COLORS_DARK,
+        ...(darkIn.pageBgColor ? { pageBgColor: darkIn.pageBgColor } : {}),
+        ...(darkIn.cardBgColor ? { cardBgColor: darkIn.cardBgColor } : {}),
+        ...(darkIn.titleColor ? { titleColor: darkIn.titleColor } : {}),
+        ...(darkIn.subtitleColor ? { subtitleColor: darkIn.subtitleColor } : {}),
+        ...(darkIn.submitBgColor ? { submitBgColor: darkIn.submitBgColor } : {}),
+        ...(darkIn.submitTextColor ? { submitTextColor: darkIn.submitTextColor } : {}),
+      },
+    },
+  };
+}
+
+  /* Legacy format — lump the old single-color fields into "light" */
+ /* Only copy fields that actually have a value */
+const legacyLight: FormScreenColors = {};
+if (incoming.pageBgColor) legacyLight.pageBgColor = incoming.pageBgColor;
+if (incoming.cardBgColor) legacyLight.cardBgColor = incoming.cardBgColor;
+if (incoming.titleColor) legacyLight.titleColor = incoming.titleColor;
+if (incoming.subtitleColor) legacyLight.subtitleColor = incoming.subtitleColor;
+if (incoming.submitBgColor) legacyLight.submitBgColor = incoming.submitBgColor;
+if (incoming.submitTextColor) legacyLight.submitTextColor = incoming.submitTextColor;
+
+return {
+  ...DEFAULT_SCREEN_STYLE,
+  ...incoming,
+  colors: {
+    light: { ...DEFAULT_SCREEN_COLORS_LIGHT, ...legacyLight },
+    dark: { ...DEFAULT_SCREEN_COLORS_DARK },
+  },
+};
+}
+
 export function loadFormConfig(): FormConfig {
   try {
     const raw = window.localStorage.getItem(FORM_CONFIG_KEY);
@@ -386,7 +485,7 @@ export function loadFormConfig(): FormConfig {
     }
     return {
       fields: parsed.fields.map((f, i) => normalizeField(f, i)),
-      screen: { ...DEFAULT_SCREEN_STYLE, ...(parsed.screen ?? {}) },
+      screen: migrateScreen(parsed.screen),
     };
   } catch {
     return { fields: DEFAULT_FIELDS, screen: DEFAULT_SCREEN_STYLE };
@@ -479,7 +578,17 @@ export const FieldRenderer: FC<FieldRendererProps> = memo(({ field, previewMode 
   }
 
   if (field.type === 'divider') {
-    return <Divider sx={{ my: 1 }} />;
+    return (
+      <Divider
+        sx={(t) => ({
+          my: 1,
+          borderColor:
+            t.palette.mode === 'dark'
+              ? 'rgba(255, 255, 255, 0.12)'
+              : 'rgba(15, 23, 42, 0.22)',
+        })}
+      />
+    );
   }
 
   switch (field.type) {

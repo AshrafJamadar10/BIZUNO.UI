@@ -4,12 +4,14 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
-  // HeadContent,
-  // Scripts,
 } from "@tanstack/react-router";
-import { useEffect,
-  //  type ReactNode
-   } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ThemeProvider,
+  createTheme,
+  CssBaseline,
+  type PaletteMode,
+} from "@mui/material";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -19,7 +21,9 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">
+          Page not found
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           The page you're looking for doesn't exist or has been moved.
         </p>
@@ -36,11 +40,19 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
+function ErrorComponent({
+  error,
+  reset,
+}: {
+  error: unknown;
+  reset: () => void;
+}) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    reportLovableError(error, {
+      boundary: "tanstack_root_error_component",
+    });
   }, [error]);
 
   return (
@@ -50,7 +62,8 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Something went wrong on our end. You can try refreshing or head back
+          home.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -74,7 +87,9 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+}>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -89,40 +104,84 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
-  // shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
 
-// function RootShell({ children }: { children: ReactNode }) {
-//   return (
-//     <html lang="en">
-//       <head>
-//         <HeadContent />
-//       </head>
-//       <body>
-//         {children}
-//         <Scripts />
-//       </body>
-//     </html>
-//   );
-// }
+function usePreferredMode(): PaletteMode {
+  const [mode, setMode] = useState<PaletteMode>(() => {
+    if (typeof window === "undefined") return "light";
+    return document.documentElement.classList.contains("dark")
+      ? "dark"
+      : "light";
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const root = document.documentElement;
+    const sync = () => {
+      setMode(root.classList.contains("dark") ? "dark" : "light");
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return mode;
+}
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const mode = usePreferredMode();
+
+  const theme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode,
+          ...(mode === "dark"
+            ? {
+                primary: { main: "#3b82f6" },
+                background: { default: "#0f172a", paper: "#111827" },
+                text: { primary: "#f8fafc", secondary: "#94a3b8" },
+                divider: "rgba(255,255,255,0.08)",
+                success: { main: "#22c55e" },
+                warning: { main: "#f59e0b" },
+                error: { main: "#ef4444" },
+              }
+            : {
+                primary: { main: "#2563eb" },
+                background: { default: "#f8fafc", paper: "#ffffff" },
+                text: { primary: "#0f172a", secondary: "#475569" },
+                divider: "rgba(15,23,42,0.08)",
+                success: { main: "#16a34a" },
+                warning: { main: "#d97706" },
+                error: { main: "#dc2626" },
+              }),
+        },
+        typography: {
+          fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif',
+        },
+        shape: { borderRadius: 10 },
+      }),
+    [mode],
+  );
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Outlet />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

@@ -1,7 +1,13 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable react-hooks/preserve-manual-memoization */
 /* eslint-disable react-hooks/immutability */
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   Box,
   IconButton,
@@ -19,6 +25,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  useTheme,
 } from "@mui/material";
 import {
   Delete,
@@ -71,8 +78,20 @@ interface CropBox {
   height: number;
 }
 
-type HandleType = "n" | "s" | "e" | "w" | "nw" | "ne" | "sw" | "se" | "move" | null;
+type HandleType =
+  | "n"
+  | "s"
+  | "e"
+  | "w"
+  | "nw"
+  | "ne"
+  | "sw"
+  | "se"
+  | "move"
+  | null;
 
+const CROP_ACCENT = "#FF5722";
+const CROP_ACCENT_HOVER = "#e64a19";
 
 const SIZE_TOKENS: Record<
   UploadSize,
@@ -84,6 +103,8 @@ const SIZE_TOKENS: Record<
     countFontSize: string;
     cameraBtnSize: number;
     cameraIconSize: number;
+    deleteBtnSize: number;   // ← new
+    deleteIconSize: number;  // ← new
     gap: number;
   }
 > = {
@@ -95,6 +116,8 @@ const SIZE_TOKENS: Record<
     countFontSize: "0.55rem",
     cameraBtnSize: 24,
     cameraIconSize: 14,
+    deleteBtnSize: 18,       // ← was 26 fixed
+    deleteIconSize: 11,      // ← was 15 fixed
     gap: 0.75,
   },
   medium: {
@@ -105,6 +128,8 @@ const SIZE_TOKENS: Record<
     countFontSize: "0.6rem",
     cameraBtnSize: 30,
     cameraIconSize: 16,
+    deleteBtnSize: 22,       // ← scales up
+    deleteIconSize: 13,
     gap: 1,
   },
   large: {
@@ -115,6 +140,8 @@ const SIZE_TOKENS: Record<
     countFontSize: "0.7rem",
     cameraBtnSize: 38,
     cameraIconSize: 20,
+    deleteBtnSize: 30,       // ← scales up
+    deleteIconSize: 16,
     gap: 1.25,
   },
 };
@@ -135,13 +162,18 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
   targetSizeKB = 100,
   maxWidth,
   maxHeight,
-
   compress = true,
   cropEnabled = false,
   cropAspect = undefined,
   cameraEnabled = true,
   size = "small",
 }) => {
+  /* ────────────────────────────────────────────────────────── */
+  /*  THEME — with safe fallback for apps without dark mode     */
+  /* ────────────────────────────────────────────────────────── */
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   const {
     setValue,
     watch,
@@ -169,14 +201,27 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
   const cropImgRef = useRef<HTMLImageElement | null>(null);
   const cropStageRef = useRef<HTMLDivElement | null>(null);
-  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  const [renderedSize, setRenderedSize] = useState<{ w: number; h: number; left: number; top: number }>({
+  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number }>({
+    w: 0,
+    h: 0,
+  });
+  const [renderedSize, setRenderedSize] = useState<{
+    w: number;
+    h: number;
+    left: number;
+    top: number;
+  }>({
     w: 0,
     h: 0,
     left: 0,
     top: 0,
   });
-  const [cropBox, setCropBox] = useState<CropBox>({ x: 0, y: 0, width: 0, height: 0 });
+  const [cropBox, setCropBox] = useState<CropBox>({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  });
   const dragState = useRef<{
     handle: HandleType;
     startX: number;
@@ -187,13 +232,78 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
   const [cameraOpen, setCameraOpen] = useState<boolean>(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
+  const [facingMode, setFacingMode] = useState<"user" | "environment">(
+    "environment",
+  );
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const errorMessage = errors[name]?.message as string;
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
+
+  /* ────────────────────────────────────────────────────────── */
+  /*  PALETTE — derived from theme.palette.*, safe in any app   */
+  /* ────────────────────────────────────────────────────────── */
+  const palette = useMemo(() => {
+    const t = theme.palette;
+    return {
+      containerBg: t.background.paper,
+      containerBorder: t.divider,
+      containerBorderActive: t.primary.main,
+      containerBorderError: t.error.main,
+      containerBgDrag: alpha(t.primary.main, isDark ? 0.06 : 0.03),
+      containerBgDisabled: alpha(t.action.disabledBackground, 0.4),
+
+      dropText: t.text.secondary,
+      dropTextDisabled: t.text.disabled,
+      dropIcon: t.text.disabled,
+      dropIconActive: t.primary.main,
+      dropHoverBg: alpha(t.primary.main, 0.02),
+
+      previewGridBg: isDark
+        ? alpha(t.common.white, 0.015)
+        : alpha(t.common.black, 0.008),
+      previewTileBg: isDark ? alpha(t.common.white, 0.02) : "#ffffff",
+      previewTileBorder: t.divider,
+      previewTileBorderHover: t.primary.main,
+      previewTileShadowHover: isDark
+        ? `0 2px 8px ${alpha(t.common.black, 0.4)}`
+        : `0 2px 8px ${alpha(t.common.black, 0.08)}`,
+      imagePlaceholder: isDark
+        ? alpha(t.common.white, 0.15)
+        : alpha(t.common.black, 0.15),
+
+      deleteBadgeBg: t.background.paper,
+      deleteBadgeHoverBg: alpha(t.error.main, 0.12),
+      deleteBadgeIcon: t.error.main,
+
+      addTileBg: isDark
+        ? alpha(t.common.white, 0.02)
+        : alpha(t.common.black, 0.015),
+      addTileBorder: t.divider,
+      addTileHoverBg: alpha(t.primary.main, 0.06),
+      addTileHoverBorder: t.primary.main,
+      addTileIcon: t.text.disabled,
+
+      successColor: t.success.main,
+
+      lightboxBg: alpha(t.common.black, isDark ? 0.95 : 0.92),
+      lightboxCloseBg: t.background.paper,
+      lightboxCloseHover: alpha(t.primary.main, 0.12),
+      lightboxCloseIcon: t.text.primary,
+
+      dialogHeaderBg: t.background.paper,
+      dialogBorder: t.divider,
+      dialogTitle: t.text.primary,
+      dialogText: t.text.secondary,
+
+      cropAccent: CROP_ACCENT,
+      cropAccentHover: CROP_ACCENT_HOVER,
+      cropCanvasBg: "#000",
+      cameraCanvasBg: "#000",
+    };
+  }, [theme, isDark]);
 
   const getSafePhotosArray = useCallback((): (File | string)[] => {
     if (!formPhotos) return [];
@@ -287,7 +397,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
         img.src = objectUrl;
       });
     },
-    [maxWidth, maxHeight]
+    [maxWidth, maxHeight],
   );
 
   const validateFiles = useCallback(
@@ -311,29 +421,30 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
       }
       return { valid, errors };
     },
-    [maxSizeBytes, maxSizeMB, accept, validateImageDimensions]
+    [maxSizeBytes, maxSizeMB, accept, validateImageDimensions],
   );
 
- const initCropBox = useCallback(
-  (dispW: number, dispH: number) => {
-    let w = dispW;
-    let h = dispH;
+  const initCropBox = useCallback(
+    (dispW: number, dispH: number) => {
+      let w = dispW;
+      let h = dispH;
 
-    if (cropAspect) {
-      if (w / h > cropAspect) {
-        w = h * cropAspect;
-      } else {
-        h = w / cropAspect;
+      if (cropAspect) {
+        if (w / h > cropAspect) {
+          w = h * cropAspect;
+        } else {
+          h = w / cropAspect;
+        }
       }
-    }
 
-    const x = (dispW - w) / 2;
-    const y = (dispH - h) / 2;
+      const x = (dispW - w) / 2;
+      const y = (dispH - h) / 2;
 
-    setCropBox({ x, y, width: w, height: h });
-  },
-  [cropAspect]
-);
+      setCropBox({ x, y, width: w, height: h });
+    },
+    [cropAspect],
+  );
+
   const computeRenderedLayout = useCallback(() => {
     const stage = cropStageRef.current;
     const img = cropImgRef.current;
@@ -373,117 +484,143 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     return () => window.removeEventListener("resize", handleResize);
   }, [cropDialogOpen, imageLoaded, computeRenderedLayout]);
 
-const clampBox = useCallback(
-  (box: CropBox, dispW: number, dispH: number): CropBox => {
-    const minSize = Math.min(dispW, dispH) * 0.05;
-    let { x, y, width, height } = box;
+  const clampBox = useCallback(
+    (box: CropBox, dispW: number, dispH: number): CropBox => {
+      const minSize = Math.min(dispW, dispH) * 0.05;
+      let { x, y, width, height } = box;
 
-    width = Math.min(Math.max(width, minSize), dispW);
-    height = Math.min(Math.max(height, minSize), dispH);
-    x = Math.max(0, Math.min(x, dispW - width));
-    y = Math.max(0, Math.min(y, dispH - height));
+      width = Math.min(Math.max(width, minSize), dispW);
+      height = Math.min(Math.max(height, minSize), dispH);
+      x = Math.max(0, Math.min(x, dispW - width));
+      y = Math.max(0, Math.min(y, dispH - height));
 
-    return { x, y, width, height };
-  },
-  []
-);
+      return { x, y, width, height };
+    },
+    [],
+  );
 
- 
- const applyEdgeDelta = useCallback(
-  (handle: HandleType, startBox: CropBox, dx: number, dy: number, dispW: number, dispH: number): CropBox => {
-    const box = { ...startBox };
+  const applyEdgeDelta = useCallback(
+    (
+      handle: HandleType,
+      startBox: CropBox,
+      dx: number,
+      dy: number,
+      dispW: number,
+      dispH: number,
+    ): CropBox => {
+      const box = { ...startBox };
 
-    if (handle === "move") {
-      box.x = startBox.x + dx;
-      box.y = startBox.y + dy;
-      return clampBox(box, dispW, dispH);
-    }
-
-    const right = startBox.x + startBox.width;
-    const bottom = startBox.y + startBox.height;
-    const minSize = Math.min(dispW, dispH) * 0.05;
-
-    let newLeft = startBox.x;
-    let newRight = right;
-    let newTop = startBox.y;
-    let newBottom = bottom;
-
-    switch (handle) {
-      case "e": newRight = right + dx; break;
-      case "w": newLeft = startBox.x + dx; break;
-      case "s": newBottom = bottom + dy; break;
-      case "n": newTop = startBox.y + dy; break;
-      case "ne": newRight = right + dx; newTop = startBox.y + dy; break;
-      case "nw": newLeft = startBox.x + dx; newTop = startBox.y + dy; break;
-      case "se": newRight = right + dx; newBottom = bottom + dy; break;
-      case "sw": newLeft = startBox.x + dx; newBottom = bottom + dy; break;
-    }
-
-    if (newRight - newLeft < minSize) {
-      if (handle === "e" || handle === "ne" || handle === "se") {
-        newRight = newLeft + minSize;
-      } else {
-        newLeft = newRight - minSize;
+      if (handle === "move") {
+        box.x = startBox.x + dx;
+        box.y = startBox.y + dy;
+        return clampBox(box, dispW, dispH);
       }
-    }
-    if (newBottom - newTop < minSize) {
-      if (handle === "s" || handle === "sw" || handle === "se") {
-        newBottom = newTop + minSize;
-      } else {
-        newTop = newBottom - minSize;
+
+      const right = startBox.x + startBox.width;
+      const bottom = startBox.y + startBox.height;
+      const minSize = Math.min(dispW, dispH) * 0.05;
+
+      let newLeft = startBox.x;
+      let newRight = right;
+      let newTop = startBox.y;
+      let newBottom = bottom;
+
+      switch (handle) {
+        case "e":
+          newRight = right + dx;
+          break;
+        case "w":
+          newLeft = startBox.x + dx;
+          break;
+        case "s":
+          newBottom = bottom + dy;
+          break;
+        case "n":
+          newTop = startBox.y + dy;
+          break;
+        case "ne":
+          newRight = right + dx;
+          newTop = startBox.y + dy;
+          break;
+        case "nw":
+          newLeft = startBox.x + dx;
+          newTop = startBox.y + dy;
+          break;
+        case "se":
+          newRight = right + dx;
+          newBottom = bottom + dy;
+          break;
+        case "sw":
+          newLeft = startBox.x + dx;
+          newBottom = bottom + dy;
+          break;
       }
-    }
 
-    box.x = newLeft;
-    box.y = newTop;
-    box.width = newRight - newLeft;
-    box.height = newBottom - newTop;
-
-    if (box.x < 0) box.x = 0;
-    if (box.y < 0) box.y = 0;
-    if (box.x + box.width > dispW) box.width = dispW - box.x;
-    if (box.y + box.height > dispH) box.height = dispH - box.y;
-
-    if (cropAspect) {
-      if (handle === "e" || handle === "w") {
-        let newHeight = box.width / cropAspect;
-        if (box.y + newHeight > dispH) {
-          newHeight = dispH - box.y;
-          box.width = newHeight * cropAspect;
-        }
-        box.height = newHeight;
-        box.y = startBox.y + (startBox.height - newHeight) / 2;
-      } else if (handle === "n" || handle === "s") {
-        let newWidth = box.height * cropAspect;
-        if (box.x + newWidth > dispW) {
-          newWidth = dispW - box.x;
-          box.height = newWidth / cropAspect;
-        }
-        box.width = newWidth;
-        box.x = startBox.x + (startBox.width - newWidth) / 2;
-      } else {
-        let newHeight = box.width / cropAspect;
-        if (handle === "ne" || handle === "nw") {
-          if (bottom - newHeight < 0) {
-            newHeight = bottom;
-            box.width = newHeight * cropAspect;
-          }
-          box.y = bottom - newHeight;
+      if (newRight - newLeft < minSize) {
+        if (handle === "e" || handle === "ne" || handle === "se") {
+          newRight = newLeft + minSize;
         } else {
-          if (startBox.y + newHeight > dispH) {
-            newHeight = dispH - startBox.y;
+          newLeft = newRight - minSize;
+        }
+      }
+      if (newBottom - newTop < minSize) {
+        if (handle === "s" || handle === "sw" || handle === "se") {
+          newBottom = newTop + minSize;
+        } else {
+          newTop = newBottom - minSize;
+        }
+      }
+
+      box.x = newLeft;
+      box.y = newTop;
+      box.width = newRight - newLeft;
+      box.height = newBottom - newTop;
+
+      if (box.x < 0) box.x = 0;
+      if (box.y < 0) box.y = 0;
+      if (box.x + box.width > dispW) box.width = dispW - box.x;
+      if (box.y + box.height > dispH) box.height = dispH - box.y;
+
+      if (cropAspect) {
+        if (handle === "e" || handle === "w") {
+          let newHeight = box.width / cropAspect;
+          if (box.y + newHeight > dispH) {
+            newHeight = dispH - box.y;
             box.width = newHeight * cropAspect;
           }
-          box.y = startBox.y;
+          box.height = newHeight;
+          box.y = startBox.y + (startBox.height - newHeight) / 2;
+        } else if (handle === "n" || handle === "s") {
+          let newWidth = box.height * cropAspect;
+          if (box.x + newWidth > dispW) {
+            newWidth = dispW - box.x;
+            box.height = newWidth / cropAspect;
+          }
+          box.width = newWidth;
+          box.x = startBox.x + (startBox.width - newWidth) / 2;
+        } else {
+          let newHeight = box.width / cropAspect;
+          if (handle === "ne" || handle === "nw") {
+            if (bottom - newHeight < 0) {
+              newHeight = bottom;
+              box.width = newHeight * cropAspect;
+            }
+            box.y = bottom - newHeight;
+          } else {
+            if (startBox.y + newHeight > dispH) {
+              newHeight = dispH - startBox.y;
+              box.width = newHeight * cropAspect;
+            }
+            box.y = startBox.y;
+          }
+          box.height = newHeight;
         }
-        box.height = newHeight;
       }
-    }
 
-    return clampBox(box, dispW, dispH);
-  },
-  [cropAspect, clampBox]
-);
+      return clampBox(box, dispW, dispH);
+    },
+    [cropAspect, clampBox],
+  );
 
   const handlePointerMove = useCallback(
     (clientX: number, clientY: number) => {
@@ -495,10 +632,17 @@ const clampBox = useCallback(
       const dispW = renderedSize.w;
       const dispH = renderedSize.h;
 
-      const next = applyEdgeDelta(ds.handle, ds.startBox, dx, dy, dispW, dispH);
+      const next = applyEdgeDelta(
+        ds.handle,
+        ds.startBox,
+        dx,
+        dy,
+        dispW,
+        dispH,
+      );
       setCropBox(next);
     },
-    [renderedSize, applyEdgeDelta]
+    [renderedSize, applyEdgeDelta],
   );
 
   const stopDrag = useCallback(() => {
@@ -514,7 +658,7 @@ const clampBox = useCallback(
     (e: MouseEvent) => {
       handlePointerMove(e.clientX, e.clientY);
     },
-    [handlePointerMove]
+    [handlePointerMove],
   );
 
   const touchMoveHandler = useCallback(
@@ -524,7 +668,7 @@ const clampBox = useCallback(
         handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
       }
     },
-    [handlePointerMove]
+    [handlePointerMove],
   );
 
   const startDrag = useCallback(
@@ -537,10 +681,12 @@ const clampBox = useCallback(
       };
       window.addEventListener("mousemove", mouseMoveHandler);
       window.addEventListener("mouseup", stopDrag);
-      window.addEventListener("touchmove", touchMoveHandler, { passive: false });
+      window.addEventListener("touchmove", touchMoveHandler, {
+        passive: false,
+      });
       window.addEventListener("touchend", stopDrag);
     },
-    [cropBox, mouseMoveHandler, stopDrag, touchMoveHandler]
+    [cropBox, mouseMoveHandler, stopDrag, touchMoveHandler],
   );
 
   const onHandleMouseDown = useCallback(
@@ -549,7 +695,7 @@ const clampBox = useCallback(
       e.stopPropagation();
       startDrag(handle, e.clientX, e.clientY);
     },
-    [startDrag]
+    [startDrag],
   );
 
   const onHandleTouchStart = useCallback(
@@ -559,7 +705,7 @@ const clampBox = useCallback(
         startDrag(handle, e.touches[0].clientX, e.touches[0].clientY);
       }
     },
-    [startDrag]
+    [startDrag],
   );
 
   useEffect(() => {
@@ -572,7 +718,12 @@ const clampBox = useCallback(
   }, [mouseMoveHandler, stopDrag, touchMoveHandler]);
 
   const getCroppedImage = useCallback(
-    async (imageSrc: string, box: CropBox, dispW: number, dispH: number): Promise<File> => {
+    async (
+      imageSrc: string,
+      box: CropBox,
+      dispW: number,
+      dispH: number,
+    ): Promise<File> => {
       const image = new Image();
       image.src = imageSrc;
       await new Promise((resolve) => {
@@ -609,11 +760,11 @@ const clampBox = useCallback(
             }
           },
           "image/jpeg",
-          0.95
+          0.95,
         );
       });
     },
-    []
+    [],
   );
 
   const resetCropDialogState = useCallback(() => {
@@ -634,14 +785,19 @@ const clampBox = useCallback(
         shouldDirty: true,
       });
     },
-    [getSafePhotosArray, name, setValue]
+    [getSafePhotosArray, name, setValue],
   );
 
   const handleCropConfirm = useCallback(async () => {
     if (!cropImageSrc || !renderedSize.w || !renderedSize.h) return;
 
     try {
-      const croppedFile = await getCroppedImage(cropImageSrc, cropBox, renderedSize.w, renderedSize.h);
+      const croppedFile = await getCroppedImage(
+        cropImageSrc,
+        cropBox,
+        renderedSize.w,
+        renderedSize.h,
+      );
       addFilesToForm([croppedFile]);
       showSnackbar("success", "Image cropped and uploaded successfully");
       resetCropDialogState();
@@ -649,7 +805,14 @@ const clampBox = useCallback(
       console.error("Crop error:", error);
       showSnackbar("error", "Failed to crop image");
     }
-  }, [cropImageSrc, cropBox, renderedSize, getCroppedImage, addFilesToForm, resetCropDialogState]);
+  }, [
+    cropImageSrc,
+    cropBox,
+    renderedSize,
+    getCroppedImage,
+    addFilesToForm,
+    resetCropDialogState,
+  ]);
 
   const handleSkipCrop = useCallback(() => {
     if (tempFile) {
@@ -670,11 +833,14 @@ const clampBox = useCallback(
     };
   }, []);
 
-  const onCropImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
-    setImageLoaded(true);
-  }, []);
+  const onCropImageLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const img = e.currentTarget;
+      setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+      setImageLoaded(true);
+    },
+    [],
+  );
 
   const processFiles = useCallback(
     async (files: File[]): Promise<void> => {
@@ -683,7 +849,10 @@ const clampBox = useCallback(
       for (const file of files) {
         const dimensionCheck = await validateImageDimensions(file);
         if (!dimensionCheck.valid) {
-          showSnackbar("error", dimensionCheck.error || `Invalid dimensions for ${file.name}`);
+          showSnackbar(
+            "error",
+            dimensionCheck.error || `Invalid dimensions for ${file.name}`,
+          );
           return;
         }
       }
@@ -710,9 +879,9 @@ const clampBox = useCallback(
 
       try {
         setUploadProgress(30);
-                     let processedFiles;
+        let processedFiles;
         if (compress) {
-                   processedFiles = await compressMultipleImages(filesToAdd, {
+          processedFiles = await compressMultipleImages(filesToAdd, {
             maxWidth: 1280,
             maxHeight: 1280,
             quality: 0.82,
@@ -723,10 +892,16 @@ const clampBox = useCallback(
         }
         addFilesToForm(processedFiles);
         setUploadProgress(100);
-        showSnackbar("success", `${processedFiles.length} image(s) uploaded${compress ? " and compressed" : ""}`);
+        showSnackbar(
+          "success",
+          `${processedFiles.length} image(s) uploaded${compress ? " and compressed" : ""}`,
+        );
       } catch (error) {
         console.error("Compression error:", error);
-        showSnackbar("error", compress ? "Failed to compress images" : "Failed to upload images");
+        showSnackbar(
+          "error",
+          compress ? "Failed to compress images" : "Failed to upload images",
+        );
       } finally {
         setTimeout(() => {
           setUploading(false);
@@ -734,7 +909,16 @@ const clampBox = useCallback(
         }, 300);
       }
     },
-    [getSafePhotosArray, maxFiles, targetSizeKB, validateImageDimensions, compress, cropEnabled, openCropDialog, addFilesToForm]
+    [
+      getSafePhotosArray,
+      maxFiles,
+      targetSizeKB,
+      validateImageDimensions,
+      compress,
+      cropEnabled,
+      openCropDialog,
+      addFilesToForm,
+    ],
   );
 
   const handleFileChange = useCallback(
@@ -756,7 +940,7 @@ const clampBox = useCallback(
 
       event.target.value = "";
     },
-    [disabled, validateFiles, processFiles]
+    [disabled, validateFiles, processFiles],
   );
 
   const handleDragOver = useCallback(
@@ -764,13 +948,16 @@ const clampBox = useCallback(
       event.preventDefault();
       if (!disabled) setDragActive(true);
     },
-    [disabled]
+    [disabled],
   );
 
-  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragActive(false);
-  }, []);
+  const handleDragLeave = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setDragActive(false);
+    },
+    [],
+  );
 
   const handleDrop = useCallback(
     async (event: React.DragEvent<HTMLDivElement>) => {
@@ -786,7 +973,7 @@ const clampBox = useCallback(
       }
       if (valid.length > 0) await processFiles(valid);
     },
-    [disabled, validateFiles, processFiles]
+    [disabled, validateFiles, processFiles],
   );
 
   const handleRemovePhoto = useCallback(
@@ -817,14 +1004,17 @@ const clampBox = useCallback(
 
       showSnackbar("error", `${fileName} deleted`);
     },
-    [getSafePhotosArray, name, setValue]
+    [getSafePhotosArray, name, setValue],
   );
 
   const handleUploadClick = useCallback((): void => {
     if (!disabled) fileInputRef.current?.click();
   }, [disabled]);
 
-  const handleEnlargeImage = useCallback((src: string) => setEnlargedImage(src), []);
+  const handleEnlargeImage = useCallback(
+    (src: string) => setEnlargedImage(src),
+    [],
+  );
   const handleCloseEnlarged = useCallback(() => setEnlargedImage(null), []);
 
   useEffect(() => {
@@ -833,7 +1023,9 @@ const clampBox = useCallback(
   }, [deletedPhotos, setValue]);
 
   register(name, {
-    required: required ? `${label || placeholder || "Image"} is required` : false,
+    required: required
+      ? `${label || placeholder || "Image"} is required`
+      : false,
     validate: {
       maxFiles: (value) => {
         const arr = value as (File | string)[] | undefined;
@@ -852,101 +1044,104 @@ const clampBox = useCallback(
     });
   }, []);
 
- const startCameraStream = useCallback(
-  async (mode: "user" | "environment") => {
-    try {
-      stopCameraStream();
+  const startCameraStream = useCallback(
+    async (mode: "user" | "environment") => {
+      try {
+        stopCameraStream();
 
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          showSnackbar(
+            "error",
+            "Camera API is not supported. Please use a modern browser over HTTPS.",
+          );
+          setCameraOpen(false);
+          return;
+        }
+
+        let stream: MediaStream | null = null;
+
+        const attempts: Array<MediaStreamConstraints> = [
+          {
+            video: {
+              facingMode:
+                mode === "environment"
+                  ? { ideal: "environment" }
+                  : { ideal: "user" },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            audio: false,
+          },
+          {
+            video: {
+              facingMode: mode,
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            audio: false,
+          },
+          {
+            video: { facingMode: mode },
+            audio: false,
+          },
+          {
+            video: true,
+            audio: false,
+          },
+        ];
+
+        for (const constraints of attempts) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            if (stream) break;
+          } catch (err) {
+            console.warn("Camera attempt failed:", constraints, err);
+          }
+        }
+
+        if (!stream) {
+          showSnackbar(
+            "error",
+            "Unable to access camera. Please check permissions and close other apps using the camera.",
+          );
+          setCameraOpen(false);
+          return;
+        }
+
+        setCameraStream(stream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          try {
+            await videoRef.current.play();
+          } catch (playErr) {
+            console.warn("Video play error:", playErr);
+          }
+        }
+      } catch (error) {
+        console.error("Camera error:", error);
         showSnackbar(
           "error",
-          "Camera API is not supported. Please use a modern browser over HTTPS.",
+          "Unable to access camera. Please check permissions.",
         );
         setCameraOpen(false);
-        return;
       }
+    },
+    [stopCameraStream],
+  );
 
-      let stream: MediaStream | null = null;
-
-      const attempts: Array<MediaStreamConstraints> = [
-        {
-          video: {
-            facingMode: mode === "environment" ? { ideal: "environment" } : { ideal: "user" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-          audio: false,
-        },
-        {
-          video: {
-            facingMode: mode,
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-          audio: false,
-        },
-        {
-          video: { facingMode: mode },
-          audio: false,
-        },
-        {
-          video: true,
-          audio: false,
-        },
-      ];
-
-      for (const constraints of attempts) {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
-          if (stream) break;
-        } catch (err) {
-          console.warn("Camera attempt failed:", constraints, err);
-        }
-      }
-
-      if (!stream) {
-        showSnackbar(
-          "error",
-          "Unable to access camera. Please check permissions and close other apps using the camera.",
-        );
-        setCameraOpen(false);
-        return;
-      }
-
-      setCameraStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        try {
-          await videoRef.current.play();
-        } catch (playErr) {
-          console.warn("Video play error:", playErr);
-        }
-      }
-    } catch (error) {
-      console.error("Camera error:", error);
-      showSnackbar(
-        "error",
-        "Unable to access camera. Please check permissions.",
-      );
-      setCameraOpen(false);
+  const handleOpenCamera = useCallback(() => {
+    if (disabled) return;
+    const currentFiles = getSafePhotosArray();
+    if (currentFiles.length >= maxFiles) {
+      showSnackbar("warning", `Maximum ${maxFiles} images only allowed`);
+      return;
     }
-  },
-  [stopCameraStream],
-);
-
-const handleOpenCamera = useCallback(() => {
-  if (disabled) return;
-  const currentFiles = getSafePhotosArray();
-  if (currentFiles.length >= maxFiles) {
-    showSnackbar("warning", `Maximum ${maxFiles} images only allowed`);
-    return;
-  }
-  setCapturedImage(null);
-  setCameraOpen(true);
-  const initialMode = "environment";
-  setFacingMode(initialMode);
-  startCameraStream(initialMode);
-}, [disabled, getSafePhotosArray, maxFiles, startCameraStream]);
+    setCapturedImage(null);
+    setCameraOpen(true);
+    const initialMode = "environment";
+    setFacingMode(initialMode);
+    startCameraStream(initialMode);
+  }, [disabled, getSafePhotosArray, maxFiles, startCameraStream]);
 
   const handleCloseCamera = useCallback(() => {
     stopCameraStream();
@@ -954,42 +1149,45 @@ const handleOpenCamera = useCallback(() => {
     setCapturedImage(null);
   }, [stopCameraStream]);
 
-const [isSwitching, setIsSwitching] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
 
-const handleFlipCamera = useCallback(async () => {
-  if (isSwitching) return; // Prevent rapid switching
-  
-  const nextMode = facingMode === "user" ? "environment" : "user";
-  setIsSwitching(true);
-  setFacingMode(nextMode);
-  showSnackbar("info", `Switching to ${nextMode === 'environment' ? 'back' : 'front'} camera...`);
-  
-  try {
-    await startCameraStream(nextMode);
-  } catch (error) {
-    console.error("Failed to switch camera:", error);
+  const handleFlipCamera = useCallback(async () => {
+    if (isSwitching) return;
+
+    const nextMode = facingMode === "user" ? "environment" : "user";
+    setIsSwitching(true);
+    setFacingMode(nextMode);
+    showSnackbar(
+      "info",
+      `Switching to ${nextMode === "environment" ? "back" : "front"} camera...`,
+    );
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 1920 }, 
-          height: { ideal: 1080 } 
-        }, 
-        audio: false 
-      });
-      setCameraStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      await startCameraStream(nextMode);
+    } catch (error) {
+      console.error("Failed to switch camera:", error);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        });
+        setCameraStream(stream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+        showSnackbar("warning", "Using any available camera");
+      } catch {
+        showSnackbar("error", "Failed to access camera after switching");
+        setCameraOpen(false);
       }
-      showSnackbar("warning", "Using any available camera");
-    } catch {
-      showSnackbar("error", "Failed to access camera after switching");
-      setCameraOpen(false);
+    } finally {
+      setIsSwitching(false);
     }
-  } finally {
-    setIsSwitching(false);
-  }
-}, [facingMode, startCameraStream, isSwitching]);
+  }, [facingMode, startCameraStream, isSwitching]);
 
   const handleCapturePhoto = useCallback(() => {
     const video = videoRef.current;
@@ -1021,7 +1219,9 @@ const handleFlipCamera = useCallback(async () => {
     fetch(capturedImage)
       .then((res) => res.blob())
       .then((blob) => {
-        const file = new File([blob], `camera_${Date.now()}.jpg`, { type: "image/jpeg" });
+        const file = new File([blob], `camera_${Date.now()}.jpg`, {
+          type: "image/jpeg",
+        });
         stopCameraStream();
         setCameraOpen(false);
         setCapturedImage(null);
@@ -1036,7 +1236,13 @@ const handleFlipCamera = useCallback(async () => {
       .catch(() => {
         showSnackbar("error", "Failed to process captured photo");
       });
-  }, [capturedImage, stopCameraStream, cropEnabled, openCropDialog, addFilesToForm]);
+  }, [
+    capturedImage,
+    stopCameraStream,
+    cropEnabled,
+    openCropDialog,
+    addFilesToForm,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -1047,7 +1253,11 @@ const handleFlipCamera = useCallback(async () => {
   const currentFilesCount = getSafePhotosArray().length;
   const PREVIEW_SIZE = tokens.previewSize;
 
-  const renderHandle = (handle: HandleType, style: React.CSSProperties, cursor: string) => (
+  const renderHandle = (
+    handle: HandleType,
+    style: React.CSSProperties,
+    cursor: string,
+  ) => (
     <Box
       onMouseDown={onHandleMouseDown(handle)}
       onTouchStart={onHandleTouchStart(handle)}
@@ -1078,7 +1288,10 @@ const handleFlipCamera = useCallback(async () => {
           >
             {label}
             {required && (
-              <Typography component="span" sx={{ color: "error.main", ml: 0.3, fontSize: "0.75rem" }}>
+              <Typography
+                component="span"
+                sx={{ color: "error.main", ml: 0.3, fontSize: "0.75rem" }}
+              >
                 *
               </Typography>
             )}
@@ -1088,9 +1301,19 @@ const handleFlipCamera = useCallback(async () => {
         <Paper
           variant="outlined"
           sx={{
-            border: `1.5px solid ${dragActive ? "#1976d2" : errorMessage ? "#dc2626" : "#e2e8f0"}`,
+            border: `1.5px solid ${
+              dragActive
+                ? palette.containerBorderActive
+                : errorMessage
+                  ? palette.containerBorderError
+                  : palette.containerBorder
+            }`,
             borderRadius: 1,
-            bgcolor: dragActive ? alpha("#1976d2", 0.02) : disabled ? alpha("#000", 0.02) : "#fff",
+            bgcolor: dragActive
+              ? palette.containerBgDrag
+              : disabled
+                ? palette.containerBgDisabled
+                : palette.containerBg,
             transition: "all 0.2s",
             overflow: "hidden",
           }}
@@ -1102,7 +1325,10 @@ const handleFlipCamera = useCallback(async () => {
             sx={{
               p: tokens.boxPadding,
               opacity: disabled ? 0.6 : 1,
-              borderBottom: previews.length > 0 ? "1px solid #e2e8f0" : "none",
+              borderBottom:
+                previews.length > 0
+                  ? `1px solid ${palette.containerBorder}`
+                  : "none",
               transition: "all 0.2s",
               display: "flex",
               alignItems: "center",
@@ -1124,32 +1350,58 @@ const handleFlipCamera = useCallback(async () => {
                 borderRadius: 1,
                 py: 0.5,
                 "&:hover": {
-                  bgcolor: !disabled && !dragActive ? alpha("#1976d2", 0.02) : undefined,
+                  bgcolor:
+                    !disabled && !dragActive ? palette.dropHoverBg : undefined,
                 },
               }}
             >
               {uploading ? (
                 <>
-                  <CircularProgress size={tokens.dropIconSize - 2} thickness={4} sx={{ color: "#1976d2" }} />
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: tokens.countFontSize }}>
+                  <CircularProgress
+                    size={tokens.dropIconSize - 2}
+                    thickness={4}
+                    sx={{ color: palette.dropIconActive }}
+                  />
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontSize: tokens.countFontSize }}
+                  >
                     {uploadProgress}%
                   </Typography>
                 </>
               ) : (
                 <>
-                  <CloudUpload sx={{ fontSize: tokens.dropIconSize, color: dragActive ? "#1976d2" : "#94a3b8" }} />
+                  <CloudUpload
+                    sx={{
+                      fontSize: tokens.dropIconSize,
+                      color: dragActive
+                        ? palette.dropIconActive
+                        : palette.dropIcon,
+                    }}
+                  />
                   <Typography
                     variant="caption"
                     noWrap
                     sx={{
-                      color: disabled ? "text.disabled" : "text.secondary",
+                      color: disabled
+                        ? palette.dropTextDisabled
+                        : palette.dropText,
                       fontWeight: 500,
                       fontSize: tokens.dropFontSize,
                     }}
                   >
-                    {dragActive ? "Drop here" : placeholder || "Upload images"}
+                    {dragActive
+                      ? "Drop here"
+                      : placeholder || "Upload images"}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: "#94a3b8", fontSize: tokens.countFontSize }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: palette.dropIcon,
+                      fontSize: tokens.countFontSize,
+                    }}
+                  >
                     ({currentFilesCount}/{maxFiles})
                   </Typography>
                 </>
@@ -1164,13 +1416,20 @@ const handleFlipCamera = useCallback(async () => {
                     disabled={disabled || currentFilesCount >= maxFiles}
                     size="small"
                     sx={{
-                      bgcolor: alpha("#1976d2", 0.08),
+                      bgcolor: alpha(palette.dropIconActive, 0.08),
                       width: tokens.cameraBtnSize,
                       height: tokens.cameraBtnSize,
-                      "&:hover": { bgcolor: alpha("#1976d2", 0.15) },
+                      "&:hover": {
+                        bgcolor: alpha(palette.dropIconActive, 0.15),
+                      },
                     }}
                   >
-                    <CameraAlt sx={{ fontSize: tokens.cameraIconSize, color: "#1976d2" }} />
+                    <CameraAlt
+                      sx={{
+                        fontSize: tokens.cameraIconSize,
+                        color: palette.dropIconActive,
+                      }}
+                    />
                   </IconButton>
                 </span>
               </Tooltip>
@@ -1179,120 +1438,179 @@ const handleFlipCamera = useCallback(async () => {
 
           {previews.length > 0 && (
             <Grow in={true}>
-              <Box sx={{ p: tokens.boxPadding, bgcolor: alpha("#f8fafc", 0.5) }}>
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: tokens.gap, alignItems: "center" }}>
+              <Box
+                sx={{ p: tokens.boxPadding, bgcolor: palette.previewGridBg }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: tokens.gap,
+                    alignItems: "center",
+                  }}
+                >
                   <AnimatePresence>
-                    {previews.map((img, index) => (
-                      <motion.div
-                        key={`${img}-${index}`}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        <Tooltip title="Click to enlarge" arrow>
-                          <Box
-                            sx={{
-                              position: "relative",
-                              width: PREVIEW_SIZE,
-                              height: PREVIEW_SIZE,
-                              borderRadius: 1,
-                              overflow: "hidden",
-                              border: "1px solid #e2e8f0",
-                              cursor: "pointer",
-                              bgcolor: "#fff",
-                              "&:hover": {
-                                transform: "scale(1.1)",
-                                borderColor: "#1976d2",
-                                boxShadow: 1,
-                              },
-                            }}
-                            onClick={() => handleEnlargeImage(img)}
-                          >
-                            {img ? (
-                              <Box
-                                component="img"
-                                src={img}
-                                alt={`Preview ${index + 1}`}
-                                sx={{ width: "100%", height: "100%", objectFit: "cover" }}
-                              />
-                            ) : (
-                              <Box
-                                sx={{
-                                  width: "100%",
-                                  height: "100%",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <ImageIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
-                              </Box>
-                            )}
-                            {!disabled && (
-                              <IconButton
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemovePhoto(index, e);
-                                }}
-                                sx={{
-                                  position: "absolute",
-                                  top: -6,
-                                  right: -6,
-                                  bgcolor: "white",
-                                  width: 18,
-                                  height: 18,
-                                  p: 0,
-                                  "&:hover": { bgcolor: "#fee2e2" },
-                                  boxShadow: 1,
-                                  zIndex: 2,
-                                }}
-                              >
-                                <Delete sx={{ fontSize: 10, color: "#dc2626" }} />
-                              </IconButton>
-                            )}
-                          </Box>
-                        </Tooltip>
-                      </motion.div>
-                    ))}
+                  {previews.map((img, index) => (
+  <motion.div
+  key={`${img}-${index}`}
+  initial={{ opacity: 0, scale: 0.8 }}
+  animate={{ opacity: 1, scale: 1 }}
+  exit={{ opacity: 0, scale: 0.8 }}
+  transition={{ duration: 0.15 }}
+>
+  {/* Pair container — one border around thumbnail + delete */}
+  <Box
+    sx={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 0.5,
+      p: 0.5,
+      borderRadius: 1,
+      border: `1px solid ${palette.previewTileBorder}`,
+      bgcolor: palette.previewTileBg,
+      transition: "all 0.15s ease",
+      "&:hover": {
+        borderColor: palette.previewTileBorderHover,
+        boxShadow: palette.previewTileShadowHover,
+      },
+    }}
+  >
+    {/* Thumbnail — no border, just the image */}
+    <Tooltip title="Click to enlarge" arrow>
+      <Box
+        sx={{
+          position: "relative",
+          width: PREVIEW_SIZE,
+          height: PREVIEW_SIZE,
+          borderRadius: 0.5,
+          overflow: "hidden",
+          cursor: "pointer",
+          bgcolor: palette.previewTileBg,
+          flexShrink: 0,
+        }}
+        onClick={() => handleEnlargeImage(img)}
+      >
+        {img ? (
+          <Box
+            component="img"
+            src={img}
+            alt={`Preview ${index + 1}`}
+            sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <Box
+            sx={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <ImageIcon
+              sx={{ fontSize: 14, color: palette.imagePlaceholder }}
+            />
+          </Box>
+        )}
+      </Box>
+    </Tooltip>
+
+    {/* Delete button — no border, relies on the pair border */}
+    {!disabled && (
+      <Tooltip title="Remove" arrow>
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRemovePhoto(index, e);
+          }}
+          sx={{
+            width: tokens.deleteBtnSize,
+            height: tokens.deleteBtnSize,
+            p: 0,
+            flexShrink: 0,
+            bgcolor: palette.deleteBadgeBg,
+            color: palette.deleteBadgeIcon,
+            transition: "all 0.15s ease",
+            "&:hover": {
+              bgcolor: palette.deleteBadgeHoverBg,
+            },
+          }}
+        >
+          <Delete sx={{ fontSize: tokens.deleteIconSize }} />
+        </IconButton>
+      </Tooltip>
+    )}
+  </Box>
+</motion.div>
+))}
                   </AnimatePresence>
 
-                  {!disabled && currentFilesCount < maxFiles && currentFilesCount > 0 && (
-                    <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
+                  {!disabled &&
+                    currentFilesCount < maxFiles &&
+                    currentFilesCount > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                      >
+                        <Box
+  onClick={handleUploadClick}
+  sx={{
+    width: PREVIEW_SIZE + 14,
+    height: PREVIEW_SIZE + 8,
+    borderRadius: 1,
+    border: `1px dashed ${palette.addTileBorder}`,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    bgcolor: palette.addTileBg,
+    "&:hover": {
+      borderColor: palette.addTileHoverBorder,
+      bgcolor: palette.addTileHoverBg,
+    },
+  }}
+>
+                          <CloudUpload
+                            sx={{
+                              fontSize: Math.max(
+                                10,
+                                tokens.dropIconSize - 6,
+                              ),
+                              color: palette.addTileIcon,
+                            }}
+                          />
+                        </Box>
+                      </motion.div>
+                    )}
+                </Box>
+                {showCompressionInfo &&
+                  !uploading &&
+                  previews.length > 0 && (
+                    <Fade in={true}>
                       <Box
-                        onClick={handleUploadClick}
                         sx={{
-                          width: PREVIEW_SIZE,
-                          height: PREVIEW_SIZE,
-                          borderRadius: 1,
-                          border: "1px dashed #cbd5e1",
+                          mt: 1,
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
-                          cursor: "pointer",
-                          bgcolor: "#fafafa",
-                          "&:hover": {
-                            borderColor: "#1976d2",
-                            bgcolor: alpha("#1976d2", 0.04),
-                          },
+                          gap: 0.5,
                         }}
                       >
-                        <CloudUpload sx={{ fontSize: Math.max(10, tokens.dropIconSize - 6), color: "#94a3b8" }} />
+                        <CheckCircle
+                          sx={{ fontSize: 10, color: palette.successColor }}
+                        />
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: palette.successColor,
+                            fontSize: "0.6rem",
+                          }}
+                        >
+                          Optimized (&lt;{targetSizeKB}KB)
+                        </Typography>
                       </Box>
-                    </motion.div>
+                    </Fade>
                   )}
-                </Box>
-                {showCompressionInfo && !uploading && previews.length > 0 && (
-                  <Fade in={true}>
-                    <Box sx={{ mt: 1, display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <CheckCircle sx={{ fontSize: 10, color: "#16a34a" }} />
-                      <Typography variant="caption" sx={{ color: "#16a34a", fontSize: "0.6rem" }}>
-                        Optimized (&lt;{targetSizeKB}KB)
-                      </Typography>
-                    </Box>
-                  </Fade>
-                )}
               </Box>
             </Grow>
           )}
@@ -1310,13 +1628,20 @@ const handleFlipCamera = useCallback(async () => {
         {errorMessage && (
           <Typography
             variant="caption"
-            sx={{ display: "block", mt: 0.5, ml: 1, color: "error.main", fontSize: "0.65rem" }}
+            sx={{
+              display: "block",
+              mt: 0.5,
+              ml: 1,
+              color: "error.main",
+              fontSize: "0.65rem",
+            }}
           >
             {errorMessage}
           </Typography>
         )}
       </Box>
 
+      {/* ───────────────── LIGHTBOX ───────────────── */}
       <AnimatePresence>
         {enlargedImage && (
           <Box
@@ -1326,7 +1651,7 @@ const handleFlipCamera = useCallback(async () => {
               left: 0,
               right: 0,
               bottom: 0,
-              bgcolor: "rgba(0,0,0,0.92)",
+              bgcolor: palette.lightboxBg,
               zIndex: 9999,
               display: "flex",
               alignItems: "center",
@@ -1350,7 +1675,10 @@ const handleFlipCamera = useCallback(async () => {
                   maxHeight: "90vh",
                   objectFit: "contain",
                   borderRadius: 2,
-                  boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
+                  boxShadow: `0 20px 40px ${alpha(
+                    theme.palette.common.black,
+                    0.3,
+                  )}`,
                 }}
               />
               <Tooltip title="Close" arrow>
@@ -1360,14 +1688,19 @@ const handleFlipCamera = useCallback(async () => {
                     position: "absolute",
                     top: { xs: -44, sm: -50 },
                     right: { xs: 0, sm: -50 },
-                    bgcolor: "white",
+                    bgcolor: palette.lightboxCloseBg,
                     width: 36,
                     height: 36,
-                    "&:hover": { bgcolor: "#f1f5f9" },
+                    "&:hover": { bgcolor: palette.lightboxCloseHover },
                     boxShadow: 2,
                   }}
                 >
-                  <CloseIcon sx={{ fontSize: 18 }} />
+                  <CloseIcon
+                    sx={{
+                      fontSize: 18,
+                      color: palette.lightboxCloseIcon,
+                    }}
+                  />
                 </IconButton>
               </Tooltip>
             </motion.div>
@@ -1375,24 +1708,25 @@ const handleFlipCamera = useCallback(async () => {
         )}
       </AnimatePresence>
 
+      {/* ───────────────── CROP DIALOG ───────────────── */}
       <Dialog
         open={cropDialogOpen}
         onClose={resetCropDialogState}
         maxWidth="md"
         fullWidth
         slotProps={{
-          paper:{
-          sx: {
-            borderRadius: { xs: 0, sm: 4 },
-            bgcolor: "#000",
-            width: "100%",
-            height: { xs: "100%", sm: "auto" },
-            maxWidth: { xs: "100vw", sm: "90vw" },
-            maxHeight: { xs: "100vh", sm: "92vh" },
-            m: { xs: 0, sm: 2 },
-            overflow: "hidden",
+          paper: {
+            sx: {
+              borderRadius: { xs: 0, sm: 4 },
+              bgcolor: palette.cropCanvasBg,
+              width: "100%",
+              height: { xs: "100%", sm: "auto" },
+              maxWidth: { xs: "100vw", sm: "90vw" },
+              maxHeight: { xs: "100vh", sm: "92vh" },
+              m: { xs: 0, sm: 2 },
+              overflow: "hidden",
+            },
           },
-        }
         }}
       >
         <DialogTitle
@@ -1401,25 +1735,40 @@ const handleFlipCamera = useCallback(async () => {
             alignItems: "center",
             gap: 1.5,
             p: { xs: 1.75, sm: 2.5 },
-            bgcolor: "#fff",
-            borderBottom: "1px solid #e2e8f0",
+            bgcolor: palette.dialogHeaderBg,
+            color: palette.dialogTitle,
+            borderBottom: `1px solid ${palette.dialogBorder}`,
           }}
         >
-          <Crop sx={{ color: "#FF5722", fontSize: 26 }} />
+          <Crop sx={{ color: palette.cropAccent, fontSize: 26 }} />
           <Typography
-  variant="h6"
-  sx={{ fontWeight: 600, fontSize: { xs: "1rem", sm: "1.25rem" } }}
->
-  Crop Image
-</Typography>
+            variant="h6"
+            sx={{
+              fontWeight: 600,
+              fontSize: { xs: "1rem", sm: "1.25rem" },
+              color: palette.dialogTitle,
+            }}
+          >
+            Crop Image
+          </Typography>
           <Typography
             variant="caption"
-            color="text.secondary"
-            sx={{ ml: "auto", display: { xs: "none", sm: "block" } }}
+            sx={{
+              color: palette.dialogText,
+              ml: "auto",
+              display: { xs: "none", sm: "block" },
+            }}
           >
             Drag any edge or corner independently
           </Typography>
-          <IconButton onClick={resetCropDialogState} size="small" sx={{ display: { xs: "flex", sm: "none" } }}>
+          <IconButton
+            onClick={resetCropDialogState}
+            size="small"
+            sx={{
+              color: palette.dialogText,
+              display: { xs: "flex", sm: "none" },
+            }}
+          >
             <CloseIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
@@ -1508,7 +1857,8 @@ const handleFlipCamera = useCallback(async () => {
                         left: cropBox.x,
                         top: cropBox.y + cropBox.height,
                         width: cropBox.width,
-                        height: renderedSize.h - (cropBox.y + cropBox.height),
+                        height:
+                          renderedSize.h - (cropBox.y + cropBox.height),
                         bgcolor: "rgba(0,0,0,0.6)",
                         pointerEvents: "none",
                       }}
@@ -1523,7 +1873,7 @@ const handleFlipCamera = useCallback(async () => {
                         top: cropBox.y,
                         width: cropBox.width,
                         height: cropBox.height,
-                        border: "2px solid #FF5722",
+                        border: `2px solid ${palette.cropAccent}`,
                         boxSizing: "border-box",
                         cursor: "move",
                         touchAction: "none",
@@ -1559,10 +1909,10 @@ const handleFlipCamera = useCallback(async () => {
                         width: 32,
                         height: 12,
                         borderRadius: 4,
-                        backgroundColor: "#FF5722",
+                        backgroundColor: palette.cropAccent,
                         border: "2px solid #fff",
                       },
-                      "ns-resize"
+                      "ns-resize",
                     )}
                     {renderHandle(
                       "s",
@@ -1572,10 +1922,10 @@ const handleFlipCamera = useCallback(async () => {
                         width: 32,
                         height: 12,
                         borderRadius: 4,
-                        backgroundColor: "#FF5722",
+                        backgroundColor: palette.cropAccent,
                         border: "2px solid #fff",
                       },
-                      "ns-resize"
+                      "ns-resize",
                     )}
                     {renderHandle(
                       "e",
@@ -1585,10 +1935,10 @@ const handleFlipCamera = useCallback(async () => {
                         width: 12,
                         height: 32,
                         borderRadius: 4,
-                        backgroundColor: "#FF5722",
+                        backgroundColor: palette.cropAccent,
                         border: "2px solid #fff",
                       },
-                      "ew-resize"
+                      "ew-resize",
                     )}
                     {renderHandle(
                       "w",
@@ -1598,10 +1948,10 @@ const handleFlipCamera = useCallback(async () => {
                         width: 12,
                         height: 32,
                         borderRadius: 4,
-                        backgroundColor: "#FF5722",
+                        backgroundColor: palette.cropAccent,
                         border: "2px solid #fff",
                       },
-                      "ew-resize"
+                      "ew-resize",
                     )}
 
                     {renderHandle(
@@ -1612,10 +1962,10 @@ const handleFlipCamera = useCallback(async () => {
                         width: 20,
                         height: 20,
                         borderRadius: "50%",
-                        backgroundColor: "#FF5722",
+                        backgroundColor: palette.cropAccent,
                         border: "2px solid #fff",
                       },
-                      "nwse-resize"
+                      "nwse-resize",
                     )}
                     {renderHandle(
                       "ne",
@@ -1625,10 +1975,10 @@ const handleFlipCamera = useCallback(async () => {
                         width: 20,
                         height: 20,
                         borderRadius: "50%",
-                        backgroundColor: "#FF5722",
+                        backgroundColor: palette.cropAccent,
                         border: "2px solid #fff",
                       },
-                      "nesw-resize"
+                      "nesw-resize",
                     )}
                     {renderHandle(
                       "sw",
@@ -1638,10 +1988,10 @@ const handleFlipCamera = useCallback(async () => {
                         width: 20,
                         height: 20,
                         borderRadius: "50%",
-                        backgroundColor: "#FF5722",
+                        backgroundColor: palette.cropAccent,
                         border: "2px solid #fff",
                       },
-                      "nesw-resize"
+                      "nesw-resize",
                     )}
                     {renderHandle(
                       "se",
@@ -1651,10 +2001,10 @@ const handleFlipCamera = useCallback(async () => {
                         width: 20,
                         height: 20,
                         borderRadius: "50%",
-                        backgroundColor: "#FF5722",
+                        backgroundColor: palette.cropAccent,
                         border: "2px solid #fff",
                       },
-                      "nwse-resize"
+                      "nwse-resize",
                     )}
                   </>
                 )}
@@ -1670,7 +2020,7 @@ const handleFlipCamera = useCallback(async () => {
                     justifyContent: "center",
                   }}
                 >
-                  <CircularProgress sx={{ color: "#FF5722" }} />
+                  <CircularProgress sx={{ color: palette.cropAccent }} />
                 </Box>
               )}
             </Box>
@@ -1681,8 +2031,8 @@ const handleFlipCamera = useCallback(async () => {
           sx={{
             p: { xs: 1.75, sm: 2.5 },
             gap: 1.5,
-            bgcolor: "#fff",
-            borderTop: "1px solid #e2e8f0",
+            bgcolor: palette.dialogHeaderBg,
+            borderTop: `1px solid ${palette.dialogBorder}`,
             justifyContent: "center",
             flexWrap: "wrap",
           }}
@@ -1690,14 +2040,27 @@ const handleFlipCamera = useCallback(async () => {
           <Button
             onClick={handleSkipCrop}
             variant="text"
-            sx={{ borderRadius: 2, textTransform: "none", px: 3, py: 1, color: "text.secondary" }}
+            sx={{
+              borderRadius: 2,
+              textTransform: "none",
+              px: 3,
+              py: 1,
+              color: palette.dialogText,
+            }}
           >
             Skip Crop
           </Button>
           <Button
             onClick={resetCropDialogState}
             variant="outlined"
-            sx={{ borderRadius: 2, textTransform: "none", px: 3, py: 1 }}
+            sx={{
+              borderRadius: 2,
+              textTransform: "none",
+              px: 3,
+              py: 1,
+              borderColor: palette.dialogBorder,
+              color: palette.dialogTitle,
+            }}
           >
             Cancel
           </Button>
@@ -1711,8 +2074,9 @@ const handleFlipCamera = useCallback(async () => {
               textTransform: "none",
               px: 4,
               py: 1,
-              bgcolor: "#FF5722",
-              "&:hover": { bgcolor: "#e64a19" },
+              bgcolor: palette.cropAccent,
+              color: "#fff",
+              "&:hover": { bgcolor: palette.cropAccentHover },
               "&:disabled": { opacity: 0.5 },
             }}
           >
@@ -1721,24 +2085,25 @@ const handleFlipCamera = useCallback(async () => {
         </DialogActions>
       </Dialog>
 
+      {/* ───────────────── CAMERA DIALOG ───────────────── */}
       <Dialog
         open={cameraOpen}
         onClose={handleCloseCamera}
         maxWidth="sm"
         fullWidth
         slotProps={{
-          paper:{
-          sx: {
-            borderRadius: { xs: 0, sm: 4 },
-            bgcolor: "#000",
-            width: "100%",
-            height: { xs: "100%", sm: "auto" },
-            maxWidth: { xs: "100vw", sm: "600px" },
-            maxHeight: { xs: "100vh", sm: "92vh" },
-            m: { xs: 0, sm: 2 },
-            overflow: "hidden",
+          paper: {
+            sx: {
+              borderRadius: { xs: 0, sm: 4 },
+              bgcolor: palette.cameraCanvasBg,
+              width: "100%",
+              height: { xs: "100%", sm: "auto" },
+              maxWidth: { xs: "100vw", sm: "600px" },
+              maxHeight: { xs: "100vh", sm: "92vh" },
+              m: { xs: 0, sm: 2 },
+              overflow: "hidden",
+            },
           },
-        }
         }}
       >
         <DialogTitle
@@ -1747,18 +2112,27 @@ const handleFlipCamera = useCallback(async () => {
             alignItems: "center",
             gap: 1.5,
             p: { xs: 1.75, sm: 2.5 },
-            bgcolor: "#fff",
-            borderBottom: "1px solid #e2e8f0",
+            bgcolor: palette.dialogHeaderBg,
+            color: palette.dialogTitle,
+            borderBottom: `1px solid ${palette.dialogBorder}`,
           }}
         >
-          <CameraAlt sx={{ color: "#FF5722", fontSize: 26 }} />
-         <Typography
-  variant="h6"
-  sx={{ fontWeight: 600, fontSize: { xs: "1rem", sm: "1.25rem" } }}
->
-  Take Photo
-</Typography>
-          <IconButton onClick={handleCloseCamera} size="small" sx={{ ml: "auto" }}>
+          <CameraAlt sx={{ color: palette.cropAccent, fontSize: 26 }} />
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 600,
+              fontSize: { xs: "1rem", sm: "1.25rem" },
+              color: palette.dialogTitle,
+            }}
+          >
+            Take Photo
+          </Typography>
+          <IconButton
+            onClick={handleCloseCamera}
+            size="small"
+            sx={{ ml: "auto", color: palette.dialogText }}
+          >
             <CloseIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
@@ -1805,11 +2179,19 @@ const handleFlipCamera = useCallback(async () => {
                 position: "absolute",
                 top: 12,
                 right: 12,
-                bgcolor: "rgba(255,255,255,0.9)",
-                "&:hover": { bgcolor: "#fff" },
+                bgcolor: alpha(theme.palette.common.white, 0.9),
+                "&:hover": {
+                  bgcolor: theme.palette.common.white,
+                },
               }}
             >
-              <FlipCameraIos sx={{ color: "#333" }} />
+              <FlipCameraIos
+                sx={{
+                  color: isDark
+                    ? theme.palette.common.black
+                    : theme.palette.text.primary,
+                }}
+              />
             </IconButton>
           )}
         </DialogContent>
@@ -1818,8 +2200,8 @@ const handleFlipCamera = useCallback(async () => {
           sx={{
             p: { xs: 1.75, sm: 2.5 },
             gap: 1.5,
-            bgcolor: "#fff",
-            borderTop: "1px solid #e2e8f0",
+            bgcolor: palette.dialogHeaderBg,
+            borderTop: `1px solid ${palette.dialogBorder}`,
             justifyContent: "center",
             flexWrap: "wrap",
           }}
@@ -1835,8 +2217,9 @@ const handleFlipCamera = useCallback(async () => {
                 textTransform: "none",
                 px: 4,
                 py: 1,
-                bgcolor: "#FF5722",
-                "&:hover": { bgcolor: "#e64a19" },
+                bgcolor: palette.cropAccent,
+                color: "#fff",
+                "&:hover": { bgcolor: palette.cropAccentHover },
               }}
             >
               Capture
@@ -1847,7 +2230,14 @@ const handleFlipCamera = useCallback(async () => {
                 onClick={handleRetakePhoto}
                 variant="outlined"
                 startIcon={<Replay />}
-                sx={{ borderRadius: 2, textTransform: "none", px: 3, py: 1 }}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: "none",
+                  px: 3,
+                  py: 1,
+                  borderColor: palette.dialogBorder,
+                  color: palette.dialogTitle,
+                }}
               >
                 Retake
               </Button>
@@ -1860,8 +2250,9 @@ const handleFlipCamera = useCallback(async () => {
                   textTransform: "none",
                   px: 4,
                   py: 1,
-                  bgcolor: "#FF5722",
-                  "&:hover": { bgcolor: "#e64a19" },
+                  bgcolor: palette.cropAccent,
+                  color: "#fff",
+                  "&:hover": { bgcolor: palette.cropAccentHover },
                 }}
               >
                 Use Photo
