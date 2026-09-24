@@ -71,6 +71,7 @@ import {
   saveFormConfig,
   serializeOptions,
   slugify,
+  topoSort,
   type Breakpoint,
   type ColSpan,
   type ConditionOperator,
@@ -956,7 +957,7 @@ const FormBuilder: FC = () => {
     setStep('config');
   };
 
-  const validateDraft = (): string | null => {
+  const validateDraft = (candidate?: FieldConfig): string | null => {
     const schema = FIELD_TYPE_SCHEMA_MAP[draft.type];
     const needsName = schema?.component !== '—' && draft.type !== 'checkbox';
 
@@ -979,13 +980,29 @@ const FormBuilder: FC = () => {
     if (draft.calcEnabled) {
       if (!draft.calcExpression.trim()) return 'Calculation expression is required';
       const deps = extractDependencies(draft.calcExpression);
-      if (deps.length === 0) return 'Calculation must reference at least one field using {field_name}';
+      if (deps.length === 0) {
+        return 'Calculation must reference at least one field using {field_name}';
+      }
       for (const dep of deps) {
         if (!orderedFields.some((f) => f.name === dep) && dep !== draft.name) {
           return `Calculation references unknown field: ${dep}`;
         }
       }
+      if (draft.required) {
+        return 'A calculated field cannot be required (it is read-only)';
+      }
     }
+
+    if (candidate) {
+      const proposed = editingId
+        ? orderedFields.map((f) => (f.id === editingId ? candidate : f))
+        : [...orderedFields, candidate];
+      const { cycles } = topoSort(proposed);
+      if (cycles.length) {
+        return `Circular dependency detected involving: ${cycles.join(', ')}`;
+      }
+    }
+
     return null;
   };
 
@@ -1009,7 +1026,7 @@ const FormBuilder: FC = () => {
       placeholder: draft.placeholder,
       helper: draft.helper || undefined,
       type: draft.type,
-      required: draft.required,
+      required: draft.calcEnabled ? false : draft.required,
       defaultValue: draft.defaultValue,
       options: parsed.values,
       optionLabels: Object.keys(parsed.labels).length ? parsed.labels : undefined,
@@ -1021,7 +1038,11 @@ const FormBuilder: FC = () => {
         ...(draft.max !== '' && { max: Number(draft.max) }),
       },
       condition: draft.conditionField
-        ? { fieldName: draft.conditionField, operator: draft.conditionOperator, value: draft.conditionValue }
+        ? {
+            fieldName: draft.conditionField,
+            operator: draft.conditionOperator,
+            value: draft.conditionValue,
+          }
         : null,
       calculation: {
         enabled: draft.calcEnabled,
@@ -1045,8 +1066,14 @@ const FormBuilder: FC = () => {
       },
       ...(isFileType && {
         fileOptions: {
-          accept: typeof draft.componentProps.accept === 'string' ? draft.componentProps.accept : undefined,
-          maxSizeMB: typeof draft.componentProps.maxSizeMB === 'number' ? draft.componentProps.maxSizeMB : undefined,
+          accept:
+            typeof draft.componentProps.accept === 'string'
+              ? draft.componentProps.accept
+              : undefined,
+          maxSizeMB:
+            typeof draft.componentProps.maxSizeMB === 'number'
+              ? draft.componentProps.maxSizeMB
+              : undefined,
           multiple: false,
         },
       }),
@@ -1055,9 +1082,12 @@ const FormBuilder: FC = () => {
   };
 
   const handleSaveDraft = () => {
-    const validationError = validateDraft();
-    if (validationError) { setError(validationError); return; }
     const built = buildField();
+    const validationError = validateDraft(built);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     const next: FormConfig = editingId
       ? { ...config, fields: config.fields.map((f) => (f.id === editingId ? built : f)) }
       : { ...config, fields: [...config.fields, built] };
@@ -1149,15 +1179,15 @@ const FormBuilder: FC = () => {
               >
                 Form Handling
               </Typography>
-              <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap', mt: 0.25 }}>
+              <Stack
+                direction="row"
+                spacing={0.75}
+                sx={{ alignItems: 'center', flexWrap: 'wrap', mt: 0.25 }}
+              >
                 <Typography variant="body2" color="text.secondary">
                   Editing:
                 </Typography>
-                <Chip
-                  size="small"
-                  color="primary"
-                  label={activeEntry?.label ?? activeFormKey}
-                />
+                <Chip size="small" color="primary" label={activeEntry?.label ?? activeFormKey} />
                 <Typography
                   variant="caption"
                   sx={{ fontFamily: 'monospace', color: 'text.disabled' }}
@@ -1184,7 +1214,11 @@ const FormBuilder: FC = () => {
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={1.5}
-            sx={{ alignItems: { xs: 'stretch', sm: 'center' }, position: 'relative', zIndex: 1 }}
+            sx={{
+              alignItems: { xs: 'stretch', sm: 'center' },
+              position: 'relative',
+              zIndex: 1,
+            }}
           >
             <Button
               onClick={openAdd}
@@ -1197,8 +1231,6 @@ const FormBuilder: FC = () => {
                 px: 2.5,
                 height: 44,
                 minWidth: 160,
-                transition:
-                  'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
                 bgcolor: 'background.paper',
                 color: 'text.primary',
                 border: '1px solid',
@@ -1237,8 +1269,6 @@ const FormBuilder: FC = () => {
                       px: 2.5,
                       height: 44,
                       minWidth: 130,
-                      transition:
-                        'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
                       bgcolor: active ? 'primary.main' : 'background.paper',
                       color: active ? 'primary.contrastText' : 'text.primary',
                       border: '1px solid',
@@ -1273,7 +1303,14 @@ const FormBuilder: FC = () => {
         {tab === 'fields' && (
           <Card className="rise-in" sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Stack
+                direction="row"
+                sx={{
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  mb: 2,
+                }}
+              >
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <DashboardCustomizeIcon color="primary" />
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -1292,7 +1329,8 @@ const FormBuilder: FC = () => {
                       variant="outlined"
                       sx={{
                         borderRadius: 2,
-                        transition: 'border-color 0.15s, box-shadow 0.15s, transform 0.15s',
+                        transition:
+                          'border-color 0.15s, box-shadow 0.15s, transform 0.15s',
                         '&:hover': {
                           borderColor: 'primary.main',
                           boxShadow: 2,
@@ -1301,8 +1339,19 @@ const FormBuilder: FC = () => {
                       }}
                     >
                       <CardContent sx={{ py: 1.5 }}>
-                        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
-                          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+                        <Stack
+                          direction="row"
+                          sx={{
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 2,
+                          }}
+                        >
+                          <Stack
+                            direction="row"
+                            spacing={1.5}
+                            sx={{ alignItems: 'center', minWidth: 0 }}
+                          >
                             <Avatar
                               sx={{
                                 bgcolor: (t) => `${t.palette.primary.main}18`,
@@ -1314,25 +1363,61 @@ const FormBuilder: FC = () => {
                               <FieldIcon fontSize="small" />
                             </Avatar>
                             <Box sx={{ minWidth: 0 }}>
-                              <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                                  #{field.order + 1} · {field.label || `(${field.type})`}
+                              <Stack
+                                direction="row"
+                                spacing={0.75}
+                                sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                              >
+                                <Typography
+                                  variant="subtitle2"
+                                  sx={{ fontWeight: 700 }}
+                                >
+                                  #{field.order + 1} ·{' '}
+                                  {field.label || `(${field.type})`}
                                 </Typography>
-                                <Chip size="small" label={FIELD_TYPE_SCHEMA_MAP[field.type]?.title ?? field.type} />
+                                <Chip
+                                  size="small"
+                                  label={
+                                    FIELD_TYPE_SCHEMA_MAP[field.type]?.title ??
+                                    field.type
+                                  }
+                                />
                                 {field.required && (
-                                  <Chip size="small" color="error" label="required" icon={<CheckBoxIcon fontSize="small" />} />
+                                  <Chip
+                                    size="small"
+                                    color="error"
+                                    label="required"
+                                    icon={<CheckBoxIcon fontSize="small" />}
+                                  />
                                 )}
                                 {field.calculation.enabled && (
-                                  <Chip size="small" color="info" label="calculated" icon={<NumbersIcon fontSize="small" />} />
+                                  <Chip
+                                    size="small"
+                                    color="info"
+                                    label="calculated"
+                                    icon={<NumbersIcon fontSize="small" />}
+                                  />
                                 )}
                                 {field.condition && (
-                                  <Chip size="small" color="warning" label="conditional" icon={<TuneIcon fontSize="small" />} />
+                                  <Chip
+                                    size="small"
+                                    color="warning"
+                                    label="conditional"
+                                    icon={<TuneIcon fontSize="small" />}
+                                  />
                                 )}
-                                {field.system && <Chip size="small" label="seed" />}
+                                {field.system && (
+                                  <Chip size="small" label="seed" />
+                                )}
                               </Stack>
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: 'block' }}
+                              >
                                 name: <code>{field.name}</code>
-                                {field.placeholder && ` · "${field.placeholder}"`}
+                                {field.placeholder &&
+                                  ` · "${field.placeholder}"`}
                               </Typography>
                             </Box>
                           </Stack>
@@ -1385,9 +1470,22 @@ const FormBuilder: FC = () => {
         {tab === 'appearance' && (
           <Card className="rise-in" sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Stack
+                direction="row"
+                sx={{
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  mb: 2,
+                }}
+              >
                 <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                  <Avatar sx={{ bgcolor: 'secondary.main', width: 40, height: 40 }}>
+                  <Avatar
+                    sx={{
+                      bgcolor: 'secondary.main',
+                      width: 40,
+                      height: 40,
+                    }}
+                  >
                     <PaletteIcon fontSize="small" />
                   </Avatar>
                   <Box>
@@ -1453,7 +1551,9 @@ const FormBuilder: FC = () => {
                         color: active ? 'text.primary' : 'text.secondary',
                         boxShadow: active ? 1 : 0,
                         '&:hover': {
-                          bgcolor: active ? 'background.paper' : 'action.selected',
+                          bgcolor: active
+                            ? 'background.paper'
+                            : 'action.selected',
                         },
                       }}
                     >
@@ -1465,8 +1565,8 @@ const FormBuilder: FC = () => {
 
               <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
                 You are editing the{' '}
-                <strong>{colorMode === 'dark' ? 'Dark' : 'Light'} mode</strong> colours.
-                These apply when the public site is in {colorMode} mode.
+                <strong>{colorMode === 'dark' ? 'Dark' : 'Light'} mode</strong>{' '}
+                colours. These apply when the public site is in {colorMode} mode.
               </Alert>
 
               <Stack spacing={2}>
@@ -1496,7 +1596,10 @@ const FormBuilder: FC = () => {
                     fullWidth
                     value={screenDraft.cardMaxWidth ?? 'md'}
                     onChange={(e) => {
-                      setScreenDraft((s) => ({ ...s, cardMaxWidth: e.target.value as FormScreenStyle['cardMaxWidth'] }));
+                      setScreenDraft((s) => ({
+                        ...s,
+                        cardMaxWidth: e.target.value as FormScreenStyle['cardMaxWidth'],
+                      }));
                       setScreenDirty(true);
                     }}
                   >
@@ -1511,7 +1614,10 @@ const FormBuilder: FC = () => {
                     fullWidth
                     value={screenDraft.cardBorderRadius ?? 12}
                     onChange={(e) => {
-                      setScreenDraft((s) => ({ ...s, cardBorderRadius: Number(e.target.value) }));
+                      setScreenDraft((s) => ({
+                        ...s,
+                        cardBorderRadius: Number(e.target.value),
+                      }));
                       setScreenDirty(true);
                     }}
                   />
@@ -1521,7 +1627,10 @@ const FormBuilder: FC = () => {
                     fullWidth
                     value={screenDraft.cardPadding ?? 32}
                     onChange={(e) => {
-                      setScreenDraft((s) => ({ ...s, cardPadding: Number(e.target.value) }));
+                      setScreenDraft((s) => ({
+                        ...s,
+                        cardPadding: Number(e.target.value),
+                      }));
                       setScreenDirty(true);
                     }}
                   />
@@ -1575,7 +1684,10 @@ const FormBuilder: FC = () => {
                   value={screenDraft.fieldGap ?? 16}
                   helperText="Comfortable = 16. Compact = 8. Loose = 24."
                   onChange={(e) => {
-                    setScreenDraft((s) => ({ ...s, fieldGap: Number(e.target.value) }));
+                    setScreenDraft((s) => ({
+                      ...s,
+                      fieldGap: Number(e.target.value),
+                    }));
                     setScreenDirty(true);
                   }}
                 />
@@ -1587,7 +1699,10 @@ const FormBuilder: FC = () => {
                     fullWidth
                     value={screenDraft.submitLabel ?? ''}
                     onChange={(e) => {
-                      setScreenDraft((s) => ({ ...s, submitLabel: e.target.value }));
+                      setScreenDraft((s) => ({
+                        ...s,
+                        submitLabel: e.target.value,
+                      }));
                       setScreenDirty(true);
                     }}
                   />
@@ -1626,7 +1741,12 @@ const FormBuilder: FC = () => {
         )}
       </Container>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="lg">
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        fullWidth
+        maxWidth="lg"
+      >
         <DialogTitle>
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
             <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
@@ -1634,10 +1754,16 @@ const FormBuilder: FC = () => {
             </Avatar>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {editingId
-                ? `Edit: ${draft.label || FIELD_TYPE_SCHEMA_MAP[draft.type]?.title || draft.type}`
+                ? `Edit: ${
+                    draft.label ||
+                    FIELD_TYPE_SCHEMA_MAP[draft.type]?.title ||
+                    draft.type
+                  }`
                 : step === 'pick'
                   ? 'What type of field do you want to add?'
-                  : `New ${FIELD_TYPE_SCHEMA_MAP[draft.type]?.title ?? draft.type}`}
+                  : `New ${
+                      FIELD_TYPE_SCHEMA_MAP[draft.type]?.title ?? draft.type
+                    }`}
             </Typography>
           </Stack>
         </DialogTitle>
@@ -1647,7 +1773,11 @@ const FormBuilder: FC = () => {
             <Box
               sx={{
                 display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(2, 1fr)',
+                  md: 'repeat(3, 1fr)',
+                },
                 gap: 1.5,
               }}
             >
@@ -1695,9 +1825,19 @@ const FormBuilder: FC = () => {
           )}
 
           {step === 'config' && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 340px' }, gap: 3 }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: '1fr 340px' },
+                gap: 3,
+              }}
+            >
               <Stack spacing={2} sx={{ pt: 1 }}>
-                {error && <Alert severity="error" icon={<DeleteOutlineIcon />}>{error}</Alert>}
+                {error && (
+                  <Alert severity="error" icon={<DeleteOutlineIcon />}>
+                    {error}
+                  </Alert>
+                )}
 
                 {!editingId && (
                   <Button
@@ -1718,7 +1858,11 @@ const FormBuilder: FC = () => {
                   value={draft.label}
                   onChange={(e) => {
                     const label = e.target.value;
-                    setDraft((d) => ({ ...d, label, name: d.name || slugify(label) }));
+                    setDraft((d) => ({
+                      ...d,
+                      label,
+                      name: d.name || slugify(label),
+                    }));
                   }}
                   helperText="The name users will see above the field."
                 />
@@ -1728,17 +1872,25 @@ const FormBuilder: FC = () => {
                     label="Field key *"
                     fullWidth
                     value={draft.name}
-                    onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, name: e.target.value }))
+                    }
                     helperText="Short code used in calculations, e.g. 'full_name'."
                   />
                 )}
 
                 {draft.type !== 'divider' && (
                   <TextField
-                    label={draft.type === 'heading' ? 'Subtitle (optional)' : 'Placeholder'}
+                    label={
+                      draft.type === 'heading'
+                        ? 'Subtitle (optional)'
+                        : 'Placeholder'
+                    }
                     fullWidth
                     value={draft.placeholder}
-                    onChange={(e) => setDraft((d) => ({ ...d, placeholder: e.target.value }))}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, placeholder: e.target.value }))
+                    }
                     helperText={`Grey hint shown inside the input, e.g. "${PLACEHOLDER_EXAMPLES[draft.type]}"`}
                   />
                 )}
@@ -1747,17 +1899,29 @@ const FormBuilder: FC = () => {
                   label="Helper text (optional)"
                   fullWidth
                   value={draft.helper}
-                  onChange={(e) => setDraft((d) => ({ ...d, helper: e.target.value }))}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, helper: e.target.value }))
+                  }
                   helperText="Small note shown below the field."
                 />
 
                 {draft.type !== 'heading' && draft.type !== 'divider' && (
-                  <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                  >
                     <FormControlLabel
                       control={
                         <Checkbox
                           checked={draft.required}
-                          onChange={(e) => setDraft((d) => ({ ...d, required: e.target.checked }))}
+                          disabled={draft.calcEnabled}
+                          onChange={(e) =>
+                            setDraft((d) => ({
+                              ...d,
+                              required: e.target.checked,
+                            }))
+                          }
                         />
                       }
                       label="Required"
@@ -1766,7 +1930,12 @@ const FormBuilder: FC = () => {
                       label="Default value (optional)"
                       fullWidth
                       value={draft.defaultValue}
-                      onChange={(e) => setDraft((d) => ({ ...d, defaultValue: e.target.value }))}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          defaultValue: e.target.value,
+                        }))
+                      }
                       helperText="Pre-filled value."
                     />
                   </Stack>
@@ -1775,12 +1944,17 @@ const FormBuilder: FC = () => {
                 {schema && schema.props.length > 0 && (
                   <>
                     <SDivider>{schema.component} options</SDivider>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: 'block', mb: 1 }}
+                    >
                       These options come from the reusable component.
                     </Typography>
                     <Stack spacing={2}>
                       {schema.props.map((prop: PropSchema) => {
-                        const value = draft.componentProps[prop.key] ?? prop.default;
+                        const value =
+                          draft.componentProps[prop.key] ?? prop.default;
 
                         if (prop.kind === 'boolean') {
                           return (
@@ -1789,14 +1963,26 @@ const FormBuilder: FC = () => {
                               control={
                                 <Checkbox
                                   checked={Boolean(value)}
-                                  onChange={(e) => setProp(prop.key, e.target.checked)}
+                                  onChange={(e) =>
+                                    setProp(prop.key, e.target.checked)
+                                  }
                                 />
                               }
                               label={
                                 <Box>
-                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{prop.label}</Typography>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{ fontWeight: 600 }}
+                                  >
+                                    {prop.label}
+                                  </Typography>
                                   {prop.hint && (
-                                    <Typography variant="caption" color="text.secondary">{prop.hint}</Typography>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      {prop.hint}
+                                    </Typography>
                                   )}
                                 </Box>
                               }
@@ -1811,11 +1997,16 @@ const FormBuilder: FC = () => {
                               label={prop.label}
                               fullWidth
                               value={String(value ?? '')}
-                              onChange={(e) => setProp(prop.key, e.target.value)}
+                              onChange={(e) =>
+                                setProp(prop.key, e.target.value)
+                              }
                               helperText={prop.hint}
                             >
                               {(prop.options ?? []).map((opt) => (
-                                <MenuItem key={String(opt.value)} value={String(opt.value)}>
+                                <MenuItem
+                                  key={String(opt.value)}
+                                  value={String(opt.value)}
+                                >
                                   {opt.label}
                                 </MenuItem>
                               ))}
@@ -1831,7 +2022,12 @@ const FormBuilder: FC = () => {
                               fullWidth
                               value={value === '' ? '' : Number(value)}
                               onChange={(e) =>
-                                setProp(prop.key, e.target.value === '' ? '' : Number(e.target.value))
+                                setProp(
+                                  prop.key,
+                                  e.target.value === ''
+                                    ? ''
+                                    : Number(e.target.value),
+                                )
                               }
                               helperText={prop.hint}
                             />
@@ -1843,7 +2039,9 @@ const FormBuilder: FC = () => {
                             label={prop.label}
                             fullWidth
                             value={String(value ?? '')}
-                            onChange={(e) => setProp(prop.key, e.target.value)}
+                            onChange={(e) =>
+                              setProp(prop.key, e.target.value)
+                            }
                             helperText={prop.hint}
                           />
                         );
@@ -1861,7 +2059,12 @@ const FormBuilder: FC = () => {
                       multiline
                       minRows={5}
                       value={draft.optionsText}
-                      onChange={(e) => setDraft((d) => ({ ...d, optionsText: e.target.value }))}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          optionsText: e.target.value,
+                        }))
+                      }
                       helperText="One per line. Use value|label if the stored value differs from the shown label."
                       placeholder={OPTIONS_EXAMPLES[draft.type]}
                     />
@@ -1870,45 +2073,68 @@ const FormBuilder: FC = () => {
 
                 {isFileType && (
                   <Alert severity="info">
-                    File-related options are configured above in the &quot;{schema?.component}&quot; section.
+                    File-related options are configured above in the &quot;
+                    {schema?.component}&quot; section.
                   </Alert>
                 )}
 
-                {(draft.type === 'text' || draft.type === 'textarea' || draft.type === 'number') && (
+                {(draft.type === 'text' ||
+                  draft.type === 'textarea' ||
+                  draft.type === 'number') && (
                   <>
                     <SDivider>Validation</SDivider>
                     {draft.type === 'number' ? (
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                      <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={2}
+                      >
                         <TextField
                           label="Minimum value"
                           type="number"
                           fullWidth
                           value={draft.min}
-                          onChange={(e) => setDraft((d) => ({ ...d, min: e.target.value }))}
+                          onChange={(e) =>
+                            setDraft((d) => ({ ...d, min: e.target.value }))
+                          }
                         />
                         <TextField
                           label="Maximum value"
                           type="number"
                           fullWidth
                           value={draft.max}
-                          onChange={(e) => setDraft((d) => ({ ...d, max: e.target.value }))}
+                          onChange={(e) =>
+                            setDraft((d) => ({ ...d, max: e.target.value }))
+                          }
                         />
                       </Stack>
                     ) : (
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                      <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={2}
+                      >
                         <TextField
                           label="Minimum length"
                           type="number"
                           fullWidth
                           value={draft.minLength}
-                          onChange={(e) => setDraft((d) => ({ ...d, minLength: e.target.value }))}
+                          onChange={(e) =>
+                            setDraft((d) => ({
+                              ...d,
+                              minLength: e.target.value,
+                            }))
+                          }
                         />
                         <TextField
                           label="Maximum length"
                           type="number"
                           fullWidth
                           value={draft.maxLength}
-                          onChange={(e) => setDraft((d) => ({ ...d, maxLength: e.target.value }))}
+                          onChange={(e) =>
+                            setDraft((d) => ({
+                              ...d,
+                              maxLength: e.target.value,
+                            }))
+                          }
                         />
                       </Stack>
                     )}
@@ -1918,13 +2144,21 @@ const FormBuilder: FC = () => {
                 {draft.type !== 'heading' && draft.type !== 'divider' && (
                   <>
                     <SDivider>Show this field only when…</SDivider>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={2}
+                    >
                       <TextField
                         select
                         label="Another field"
                         fullWidth
                         value={draft.conditionField}
-                        onChange={(e) => setDraft((d) => ({ ...d, conditionField: e.target.value }))}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            conditionField: e.target.value,
+                          }))
+                        }
                       >
                         <MenuItem value="">— Always show —</MenuItem>
                         {otherFields.map((f) => (
@@ -1942,12 +2176,15 @@ const FormBuilder: FC = () => {
                         onChange={(e) =>
                           setDraft((d) => ({
                             ...d,
-                            conditionOperator: e.target.value as ConditionOperator,
+                            conditionOperator:
+                              e.target.value as ConditionOperator,
                           }))
                         }
                       >
                         {CONDITION_OPERATORS.map((op) => (
-                          <MenuItem key={op} value={op}>{op}</MenuItem>
+                          <MenuItem key={op} value={op}>
+                            {op}
+                          </MenuItem>
                         ))}
                       </TextField>
                       <TextField
@@ -1955,20 +2192,33 @@ const FormBuilder: FC = () => {
                         fullWidth
                         value={draft.conditionValue}
                         disabled={!draft.conditionField}
-                        onChange={(e) => setDraft((d) => ({ ...d, conditionValue: e.target.value }))}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            conditionValue: e.target.value,
+                          }))
+                        }
                       />
                     </Stack>
                   </>
                 )}
 
-                {(draft.type === 'text' || draft.type === 'number' || draft.type === 'select') && (
+                {(draft.type === 'text' ||
+                  draft.type === 'number' ||
+                  draft.type === 'select') && (
                   <>
                     <SDivider>Calculate from other fields</SDivider>
                     <FormControlLabel
                       control={
                         <Checkbox
                           checked={draft.calcEnabled}
-                          onChange={(e) => setDraft((d) => ({ ...d, calcEnabled: e.target.checked }))}
+                          onChange={(e) =>
+                            setDraft((d) => ({
+                              ...d,
+                              calcEnabled: e.target.checked,
+                              ...(e.target.checked && { required: false }),
+                            }))
+                          }
                         />
                       }
                       label="This field is auto-calculated"
@@ -1978,7 +2228,12 @@ const FormBuilder: FC = () => {
                         label="Formula"
                         fullWidth
                         value={draft.calcExpression}
-                        onChange={(e) => setDraft((d) => ({ ...d, calcExpression: e.target.value }))}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            calcExpression: e.target.value,
+                          }))
+                        }
                         placeholder="e.g. {quantity} * {unit_price}"
                         helperText="Wrap field keys in {}. Supports + - * / ( )."
                       />
@@ -1995,7 +2250,10 @@ const FormBuilder: FC = () => {
                     value={draft.colSpan}
                     helperText="Change per device in the Responsive tab."
                     onChange={(e) =>
-                      setDraft((d) => ({ ...d, colSpan: Number(e.target.value) as ColSpan }))
+                      setDraft((d) => ({
+                        ...d,
+                        colSpan: Number(e.target.value) as ColSpan,
+                      }))
                     }
                   >
                     {COL_SPANS.map((c) => (
@@ -2020,11 +2278,16 @@ const FormBuilder: FC = () => {
                     fullWidth
                     value={draft.variant}
                     onChange={(e) =>
-                      setDraft((d) => ({ ...d, variant: e.target.value as FieldVariant }))
+                      setDraft((d) => ({
+                        ...d,
+                        variant: e.target.value as FieldVariant,
+                      }))
                     }
                   >
                     {VARIANTS.map((v) => (
-                      <MenuItem key={v} value={v}>{v}</MenuItem>
+                      <MenuItem key={v} value={v}>
+                        {v}
+                      </MenuItem>
                     ))}
                   </TextField>
                   <TextField
@@ -2033,11 +2296,16 @@ const FormBuilder: FC = () => {
                     fullWidth
                     value={draft.size}
                     onChange={(e) =>
-                      setDraft((d) => ({ ...d, size: e.target.value as FieldSize }))
+                      setDraft((d) => ({
+                        ...d,
+                        size: e.target.value as FieldSize,
+                      }))
                     }
                   >
                     {SIZES.map((s) => (
-                      <MenuItem key={s} value={s}>{s}</MenuItem>
+                      <MenuItem key={s} value={s}>
+                        {s}
+                      </MenuItem>
                     ))}
                   </TextField>
                 </Stack>
@@ -2055,26 +2323,37 @@ const FormBuilder: FC = () => {
                       label="Text colour"
                       value={draft.textColor}
                       placeholder="inherit"
-                      onChange={(value) => setDraft((d) => ({ ...d, textColor: value }))}
+                      onChange={(value) =>
+                        setDraft((d) => ({ ...d, textColor: value }))
+                      }
                     />
                     <ColorFieldUncontrolled
                       label="Field background colour"
                       value={draft.backgroundColor}
                       placeholder="inherit"
-                      onChange={(value) => setDraft((d) => ({ ...d, backgroundColor: value }))}
+                      onChange={(value) =>
+                        setDraft((d) => ({ ...d, backgroundColor: value }))
+                      }
                     />
                     <ColorFieldUncontrolled
                       label="Border colour"
                       value={draft.borderColor}
                       placeholder="inherit"
-                      onChange={(value) => setDraft((d) => ({ ...d, borderColor: value }))}
+                      onChange={(value) =>
+                        setDraft((d) => ({ ...d, borderColor: value }))
+                      }
                     />
                     <TextField
                       label="Border radius (px)"
                       type="number"
                       fullWidth
                       value={draft.borderRadius}
-                      onChange={(e) => setDraft((d) => ({ ...d, borderRadius: e.target.value }))}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          borderRadius: e.target.value,
+                        }))
+                      }
                       helperText="Rounded corners of the input box."
                     />
                     <TextField
@@ -2082,29 +2361,47 @@ const FormBuilder: FC = () => {
                       type="number"
                       fullWidth
                       value={draft.fontWeight}
-                      onChange={(e) => setDraft((d) => ({ ...d, fontWeight: e.target.value }))}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          fontWeight: e.target.value,
+                        }))
+                      }
                       helperText="100 = thin, 400 = normal, 700 = bold."
                     />
                   </Box>
                 </Stack>
               </Stack>
 
-              <Box sx={{ position: { md: 'sticky' }, top: { md: 16 }, alignSelf: 'start' }}>
+              <Box
+                sx={{
+                  position: { md: 'sticky' },
+                  top: { md: 16 },
+                  alignSelf: 'start',
+                }}
+              >
                 <Card
                   variant="outlined"
                   sx={{
                     p: 2,
                     borderRadius: 2,
-                    bgcolor: (t) => (t.palette.mode === 'dark' ? 'grey.900' : 'grey.50'),
+                    bgcolor: (t) =>
+                      t.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
                   }}
                 >
-                  <Stack direction="row" spacing={1} sx={{ mb: 1, alignItems: 'center' }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ mb: 1, alignItems: 'center' }}
+                  >
                     <VisibilityIcon fontSize="small" color="primary" />
                     <Typography variant="caption" sx={{ fontWeight: 600 }}>
                       Live preview
                     </Typography>
                   </Stack>
-                  <PreviewField field={draftToFieldConfig(draft, editingId ?? 'preview')} />
+                  <PreviewField
+                    field={draftToFieldConfig(draft, editingId ?? 'preview')}
+                  />
                   <Box
                     sx={{
                       mt: 1.5,
@@ -2142,7 +2439,10 @@ const FormBuilder: FC = () => {
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)} sx={{ textTransform: 'none' }}>
+          <Button
+            onClick={() => setDialogOpen(false)}
+            sx={{ textTransform: 'none' }}
+          >
             Cancel
           </Button>
           {step === 'config' && (
