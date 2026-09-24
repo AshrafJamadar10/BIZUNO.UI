@@ -17,6 +17,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import DevicesOtherIcon from '@mui/icons-material/DevicesOther';
 import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import TabletMacIcon from '@mui/icons-material/TabletMac';
 import LaptopMacIcon from '@mui/icons-material/LaptopMac';
@@ -81,13 +82,17 @@ import {
   type FormConfig,
   type FormScreenColors,
   type FormScreenStyle,
-} from '@/utils/FormEngine';
+} from '@/utils/FormHandling/FormEngine';
+import {
+  FORM_REGISTRY,
+  getFormEntry,
+} from '@/utils/FormHandling/FormRegistry';
 import {
   FIELD_TYPE_SCHEMAS,
   FIELD_TYPE_SCHEMA_MAP,
   defaultPropsFor,
   type PropSchema,
-} from '@/utils/FieldTypeRegistry';
+} from '@/utils/FormHandling/FieldTypeRegistry';
 
 const FIELD_ICON_MAP: Record<FieldType, SvgIconComponent> = {
   text: TextFieldsIcon,
@@ -260,10 +265,6 @@ const PreviewField: FC<{ field: FieldConfig }> = ({ field }) => {
   );
 };
 
-/* ============================================================
- *  SUBMIT BUTTON PREVIEW — top-level so ResponsiveDesigner can use it
- * ============================================================ */
-
 interface SubmitFieldPreviewProps {
   screen: FormScreenStyle;
   colorMode: ColorMode;
@@ -294,17 +295,10 @@ const SubmitFieldPreview: FC<SubmitFieldPreviewProps> = ({ screen, colorMode }) 
         direction="row"
         spacing={0.5}
         sx={{
-          position: 'absolute',
-          top: 6,
-          left: 6,
-          alignItems: 'center',
-          bgcolor: 'background.paper',
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 1,
-          px: 0.75,
-          py: 0.25,
-          zIndex: 2,
+          position: 'absolute', top: 6, left: 6, alignItems: 'center',
+          bgcolor: 'background.paper', border: '1px solid',
+          borderColor: 'divider', borderRadius: 1,
+          px: 0.75, py: 0.25, zIndex: 2,
         }}
       >
         <SaveIcon fontSize="inherit" sx={{ fontSize: 16, color: 'primary.main' }} />
@@ -318,14 +312,8 @@ const SubmitFieldPreview: FC<SubmitFieldPreviewProps> = ({ screen, colorMode }) 
           fullWidth
           disableElevation
           sx={{
-            bgcolor: bg,
-            color: fg,
-            textTransform: 'none',
-            fontWeight: 600,
-            borderRadius: 2,
-            py: 1.25,
-            boxShadow: 'none',
-            pointerEvents: 'none',
+            bgcolor: bg, color: fg, textTransform: 'none', fontWeight: 600,
+            borderRadius: 2, py: 1.25, boxShadow: 'none', pointerEvents: 'none',
             '&:hover': { boxShadow: 'none' },
           }}
         >
@@ -444,10 +432,6 @@ const SortableField: FC<SortableFieldProps> = ({
   );
 };
 
-/* ============================================================
- *  RESPONSIVE DESIGNER
- * ============================================================ */
-
 interface ResponsiveDesignerProps {
   fields: FieldConfig[];
   screen: FormScreenStyle;
@@ -456,10 +440,7 @@ interface ResponsiveDesignerProps {
 }
 
 const ResponsiveDesigner: FC<ResponsiveDesignerProps> = ({
-  fields,
-  onSave,
-  colorMode,
-  screen,
+  fields, onSave, colorMode, screen,
 }) => {
   const [breakpoint, setBreakpoint] = useState<Breakpoint>('desktop');
   const [draft, setDraft] = useState<FieldConfig[]>(fields);
@@ -738,11 +719,118 @@ const ResponsiveDesigner: FC<ResponsiveDesignerProps> = ({
   );
 };
 
-/* ============================================================
- *  FORM BUILDER
- * ============================================================ */
+interface FormPickerDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (formKey: string) => void;
+  currentFormKey: string | null;
+}
+
+const FormPickerDialog: FC<FormPickerDialogProps> = ({
+  open, onClose, onSelect, currentFormKey,
+}) => {
+  const sortedForms = useMemo(
+    () => [...FORM_REGISTRY].sort((a, b) => a.order - b.order),
+    [],
+  );
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle>
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
+            <DashboardCustomizeIcon fontSize="small" />
+          </Avatar>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Select a form to manage
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Choose which tab&apos;s form you want to customize.
+            </Typography>
+          </Box>
+        </Stack>
+      </DialogTitle>
+
+      <DialogContent dividers>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+            gap: 1.5,
+          }}
+        >
+          {sortedForms.map((form) => {
+            const active = form.formKey === currentFormKey;
+            return (
+              <Card
+                key={form.formKey}
+                variant="outlined"
+                onClick={() => onSelect(form.formKey)}
+                sx={{
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  borderRadius: 2,
+                  borderColor: active ? 'primary.main' : 'divider',
+                  borderWidth: active ? 2 : 1,
+                  bgcolor: active ? 'action.selected' : 'background.paper',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    boxShadow: 3,
+                    transform: 'translateY(-2px)',
+                  },
+                }}
+              >
+                <CardContent>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 1 }}>
+                    <Avatar
+                      sx={{
+                        bgcolor: (t) => `${t.palette.primary.main}18`,
+                        color: 'primary.main',
+                        width: 36,
+                        height: 36,
+                      }}
+                    >
+                      <DashboardCustomizeIcon fontSize="small" />
+                    </Avatar>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {form.label}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                    {form.description}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: 'block',
+                      mt: 1,
+                      fontFamily: 'monospace',
+                      color: 'text.disabled',
+                    }}
+                  >
+                    key: {form.formKey}
+                  </Typography>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </Box>
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={onClose} sx={{ textTransform: 'none' }}>
+          Cancel
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 const FormBuilder: FC = () => {
+  const [activeFormKey, setActiveFormKey] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(true);
+
   const [config, setConfig] = useState<FormConfig>({ fields: [] });
   const [tab, setTab] = useState<BuilderTab>('fields');
   const [colorMode, setColorMode] = useState<ColorMode>('light');
@@ -755,10 +843,26 @@ const FormBuilder: FC = () => {
   const [screenDirty, setScreenDirty] = useState(false);
 
   useEffect(() => {
-    const loaded = loadFormConfig();
+    if (!activeFormKey) return;
+    const entry = getFormEntry(activeFormKey);
+    const loaded = loadFormConfig(activeFormKey, {
+      fallbackFields: entry?.defaultFields?.length ? entry.defaultFields : [],
+      fallbackScreen: DEFAULT_SCREEN_STYLE,
+    });
     setConfig(loaded);
     setScreenDraft(loaded.screen ?? DEFAULT_SCREEN_STYLE);
-  }, []);
+    setScreenDirty(false);
+  }, [activeFormKey]);
+
+  const handleSelectForm = (formKey: string) => {
+    setActiveFormKey(formKey);
+    setPickerOpen(false);
+    setTab('fields');
+  };
+
+  const handleSwitchForm = () => {
+    setPickerOpen(true);
+  };
 
   const orderedFields = useMemo(
     () => [...config.fields].sort((a, b) => a.order - b.order),
@@ -816,8 +920,9 @@ const FormBuilder: FC = () => {
   };
 
   const persist = (next: FormConfig) => {
+    if (!activeFormKey) return;
     setConfig(next);
-    saveFormConfig(next);
+    saveFormConfig(next, activeFormKey);
   };
 
   const resetDraft = () => {
@@ -981,6 +1086,19 @@ const FormBuilder: FC = () => {
     setDraft((d) => ({ ...d, componentProps: { ...d.componentProps, [key]: value } }));
   };
 
+  const activeEntry = activeFormKey ? getFormEntry(activeFormKey) : null;
+
+  if (!activeFormKey) {
+    return (
+      <FormPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handleSelectForm}
+        currentFormKey={activeFormKey}
+      />
+    );
+  }
+
   return (
     <Box className="page-enter" sx={{ pb: { xs: 4, md: 6 } }}>
       <Container maxWidth="xl" disableGutters sx={{ px: { xs: 2, md: 3 } }}>
@@ -1020,7 +1138,7 @@ const FormBuilder: FC = () => {
             >
               <DashboardCustomizeIcon sx={{ fontSize: { xs: 22, md: 28 } }} />
             </Avatar>
-            <Box sx={{ minWidth: 0 }}>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
               <Typography
                 variant="h5"
                 sx={{
@@ -1031,10 +1149,36 @@ const FormBuilder: FC = () => {
               >
                 Form Handling
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Design fields, tune responsiveness, customise the public form.
-              </Typography>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap', mt: 0.25 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Editing:
+                </Typography>
+                <Chip
+                  size="small"
+                  color="primary"
+                  label={activeEntry?.label ?? activeFormKey}
+                />
+                <Typography
+                  variant="caption"
+                  sx={{ fontFamily: 'monospace', color: 'text.disabled' }}
+                >
+                  ({activeFormKey})
+                </Typography>
+              </Stack>
             </Box>
+            <Button
+              onClick={handleSwitchForm}
+              startIcon={<SwapHorizIcon />}
+              variant="outlined"
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: 2,
+                flexShrink: 0,
+              }}
+            >
+              Switch form
+            </Button>
           </Stack>
 
           <Stack
@@ -2013,6 +2157,13 @@ const FormBuilder: FC = () => {
           )}
         </DialogActions>
       </Dialog>
+
+      <FormPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handleSelectForm}
+        currentFormKey={activeFormKey}
+      />
     </Box>
   );
 };

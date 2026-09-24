@@ -1,15 +1,213 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  FormControlLabel,
+  Grid,
+  Switch,
+  TextField,
+  Typography,
+  alpha,
+  useTheme,
+} from "@mui/material";
 import { Save } from "lucide-react";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
-import { Card } from "@/components/ui/card";
-import { TextField } from "@mui/material";
-import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/settings/")({ component: SettingsPage });
+export const Route = createFileRoute("/settings/")({
+  head: () => ({
+    meta: [{ title: "Settings — BizUno" }],
+  }),
+  component: SettingsPage,
+});
+
 function SettingsPage() {
-  const [company, setCompany] = useState("Nexus Traders Pvt Ltd"); const [email, setEmail] = useState("accounts@nexustraders.in"); const [notifications, setNotifications] = useState(true);
-  return <AppShell><PageHeader title="Settings" description="Configure your workspace, company details and notifications." crumbs={[{ label: "Home", to: "/" }, { label: "Settings" }]} /><div className="grid gap-4 lg:grid-cols-3"><Card className="p-5 lg:col-span-2"><h2 className="font-semibold">Company profile</h2><p className="mt-1 text-sm text-muted-foreground">These details appear on invoices and reports.</p><div className="mt-5 grid gap-4 sm:grid-cols-2"><div><TextField label="Company name" className="mt-1.5" value={company} onChange={(e) => setCompany(e.target.value)} /></div><div><TextField label="Accounts email" className="mt-1.5" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div><div><TextField label="Currency" className="mt-1.5" value="INR (₹)" disabled /></div><div><TextField label="Financial year" className="mt-1.5" value="April - March" disabled /></div></div><Button className="mt-5" onClick={() => toast.success("Settings saved")}><Save className="size-4" /> Save changes</Button></Card><Card className="p-5"><h2 className="font-semibold">Notifications</h2><p className="mt-1 text-sm text-muted-foreground">Choose which workspace alerts you receive.</p><div className="mt-5 flex items-center justify-between gap-4"><div><p className="text-sm font-medium">Email notifications</p><p className="text-xs text-muted-foreground">Low stock and payment reminders</p></div><button type="button" role="switch" aria-checked={notifications} onClick={() => setNotifications((value) => !value)} className={`relative h-6 w-11 rounded-full transition-colors ${notifications ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1 size-4 rounded-full bg-white transition-transform ${notifications ? "translate-x-6" : "translate-x-1"}`} /></button></div></Card></div></AppShell>;
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
+  const [company, setCompany] = useState("Nexus Traders Pvt Ltd");
+  const [email, setEmail] = useState("accounts@nexustraders.in");
+  const [notifications, setNotifications] = useState(true);
+
+  const handleSave = () => {
+    toast.success("Settings saved");
+  };
+
+  return (
+    <AppShell>
+      <PageHeader
+        title="Settings"
+        description="Configure your workspace, company details and notifications."
+        crumbs={[{ label: "Home", to: "/" }, { label: "Settings" }]}
+      />
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Grid container spacing={3}>
+          <Grid size={{ xs: 12, lg: 8 }}>
+            <Card
+              elevation={0}
+              sx={{
+                borderRadius: 3,
+                border: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: 16,
+                    color: theme.palette.text.primary,
+                  }}
+                >
+                  Company profile
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 0.5, color: theme.palette.text.secondary }}
+                >
+                  These details appear on invoices and reports.
+                </Typography>
+
+                <Grid container spacing={2} sx={{ mt: 2 }}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      label="Company name"
+                      value={company}
+                      onChange={(e) => setCompany(e.target.value)}
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      label="Accounts email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      label="Currency"
+                      value="INR (₹)"
+                      fullWidth
+                      size="small"
+                      disabled
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      label="Financial year"
+                      value="April - March"
+                      fullWidth
+                      size="small"
+                      disabled
+                    />
+                  </Grid>
+                </Grid>
+
+                <Box sx={{ mt: 3 }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<Save size={16} />}
+                    onClick={handleSave}
+                    sx={{
+                      textTransform: "none",
+                      borderRadius: 2,
+                      bgcolor: theme.palette.primary.main,
+                      "&:hover": { bgcolor: theme.palette.primary.dark },
+                    }}
+                  >
+                    Save changes
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid size={{ xs: 12, lg: 4 }}>
+            <Card
+              elevation={0}
+              sx={{
+                borderRadius: 3,
+                border: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: 16,
+                    color: theme.palette.text.primary,
+                  }}
+                >
+                  Notifications
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 0.5, color: theme.palette.text.secondary }}
+                >
+                  Choose which workspace alerts you receive.
+                </Typography>
+
+                <Box
+                  sx={{
+                    mt: 2.5,
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: alpha(
+                      theme.palette.primary.main,
+                      isDark ? 0.08 : 0.03,
+                    ),
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={notifications}
+                        onChange={(e) => setNotifications(e.target.checked)}
+                        color="primary"
+                      />
+                    }
+                    label={
+                      <Box sx={{ ml: 0.5 }}>
+                        <Typography
+                          sx={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: theme.palette.text.primary,
+                          }}
+                        >
+                          Email notifications
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: theme.palette.text.secondary }}
+                        >
+                          Low stock and payment reminders
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{ alignItems: "flex-start", m: 0 }}
+                  />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </motion.div>
+    </AppShell>
+  );
 }

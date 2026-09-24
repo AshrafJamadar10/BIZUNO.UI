@@ -43,9 +43,13 @@ import {
   useBreakpoint,
   type FormConfig,
   type FormScreenColors,
-} from '@/utils/FormEngine';
+} from '@/utils/FormHandling/FormEngine';
 
-const WebsiteForm: FC = () => {
+interface WebsiteFormProps {
+  formKey?: string;
+}
+
+const WebsiteForm: FC<WebsiteFormProps> = ({ formKey = 'website' }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const breakpoint = useBreakpoint();
@@ -61,14 +65,14 @@ const WebsiteForm: FC = () => {
   const { control, setValue, getValues, handleSubmit, reset } = methods;
 
   useEffect(() => {
-    const loaded = loadFormConfig();
+    const loaded = loadFormConfig(formKey);
     setConfig(loaded);
     const initial: Record<string, string> = {};
     loaded.fields.forEach((f) => {
       initial[f.name] = f.defaultValue ?? '';
     });
     reset(initial);
-  }, [reset]);
+  }, [reset, formKey]);
 
   const orderedFields = useMemo(
     () => [...config.fields].sort((a, b) => a.order - b.order),
@@ -119,7 +123,6 @@ const WebsiteForm: FC = () => {
   const palette = useMemo(() => {
     const t = theme.palette;
 
-    /* Read the mode-specific color set, falling back to theme defaults */
     const modeColors: FormScreenColors =
       (isDark ? screen.colors?.dark : screen.colors?.light) ??
       (isDark ? DEFAULT_SCREEN_COLORS_DARK : DEFAULT_SCREEN_COLORS_LIGHT);

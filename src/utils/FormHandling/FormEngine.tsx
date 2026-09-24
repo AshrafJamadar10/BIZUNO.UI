@@ -16,10 +16,6 @@ import DateTimeField from '@/components/MUI/DateTimeField';
 import FileUpload from '@/components/MUI/FileUpload';
 import PhotoUpload from '@/components/MUI/PhotoUpload';
 
-/* ============================================================
- *  TYPES
- * ============================================================ */
-
 export type FieldType =
   | 'text' | 'number' | 'email' | 'mobile' | 'aadhaar' | 'search'
   | 'password' | 'textarea' | 'select' | 'multiselect' | 'radio'
@@ -101,7 +97,6 @@ export interface FieldConfig {
   system?: boolean;
 }
 
-/* One set of colors for a single mode */
 export interface FormScreenColors {
   pageBgColor?: string;
   cardBgColor?: string;
@@ -111,28 +106,20 @@ export interface FormScreenColors {
   submitTextColor?: string;
 }
 
-/* Layout + content + per-mode colors */
 export interface FormScreenStyle {
-  /* Layout (shared across modes) */
   cardMaxWidth?: 'sm' | 'md' | 'lg' | 'xl';
   cardBorderRadius?: number;
   cardPadding?: number;
   cardShadow?: 0 | 1 | 2 | 3 | 4;
-
-  /* Content (shared across modes) */
   titleText?: string;
   subtitleText?: string;
   fieldGap?: number;
   submitLabel?: string;
   loginLabel?: string;
-
-  /* Per-mode color overrides */
   colors?: {
     light?: FormScreenColors;
     dark?: FormScreenColors;
   };
-
-  /* LEGACY — kept for backward compatibility with saved configs */
   pageBgColor?: string;
   cardBgColor?: string;
   titleColor?: string;
@@ -146,11 +133,8 @@ export interface FormConfig {
   screen?: FormScreenStyle;
 }
 
-/* ============================================================
- *  CONSTANTS
- * ============================================================ */
-
-export const FORM_CONFIG_KEY = 'bizuno_form_config';
+export const FORM_CONFIG_KEY_PREFIX = 'bizuno_form_config__';
+export const FORM_CONFIG_KEY_LEGACY = 'bizuno_form_config';
 
 export const PLACEHOLDER_EXAMPLES: Record<FieldType, string> = {
   text: 'Enter your name',
@@ -228,48 +212,11 @@ export const DEFAULT_SCREEN_STYLE: FormScreenStyle = {
   },
 };
 
-export const DEFAULT_FIELDS: FieldConfig[] = [
-  {
-    id: 'fld_seed_name',
-    name: 'full_name',
-    label: 'Full Name',
-    placeholder: 'Enter your full name',
-    type: 'text',
-    required: true,
-    defaultValue: '',
-    options: [],
-    validation: { minLength: 2, maxLength: 60 },
-    condition: null,
-    calculation: { enabled: false, expression: '', dependsOn: [] },
-    order: 0,
-    layout: DEFAULT_RESPONSIVE_LAYOUT,
-    style: {},
-    props: {},
-    system: true,
-  },
-  {
-    id: 'fld_seed_email',
-    name: 'email',
-    label: 'Email Address',
-    placeholder: 'you@example.com',
-    type: 'email',
-    required: true,
-    defaultValue: '',
-    options: [],
-    validation: { pattern: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$' },
-    condition: null,
-    calculation: { enabled: false, expression: '', dependsOn: [] },
-    order: 1,
-    layout: DEFAULT_RESPONSIVE_LAYOUT,
-    style: {},
-    props: {},
-    system: true,
-  },
-];
 
-/* ============================================================
- *  HELPERS
- * ============================================================ */
+
+export function formStorageKey(formKey: string): string {
+  return `${FORM_CONFIG_KEY_PREFIX}${formKey}`;
+}
 
 export function newFieldId(): string {
   return `fld_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -353,7 +300,6 @@ export function evaluateCalculation(
   if (/[{}a-zA-Z_]/.test(substituted)) return '';
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
     const result = Function(`"use strict"; return (${substituted});`)() as unknown;
     if (typeof result === 'number' && Number.isFinite(result)) {
       return String(Math.round(result * 100) / 100);
@@ -411,94 +357,119 @@ export function normalizeField(field: Partial<FieldConfig>, index: number): Fiel
   };
 }
 
-/* Migrate old single-color-set configs into the new dual-mode format */
 function migrateScreen(
   incoming: Partial<FormScreenStyle> | undefined,
 ): FormScreenStyle {
   if (!incoming) return DEFAULT_SCREEN_STYLE;
 
-  /* Already new format */
- if (incoming.colors) {
-  const lightIn = incoming.colors.light ?? {};
-  const darkIn = incoming.colors.dark ?? {};
+  if (incoming.colors) {
+    const lightIn = incoming.colors.light ?? {};
+    const darkIn = incoming.colors.dark ?? {};
+
+    return {
+      ...DEFAULT_SCREEN_STYLE,
+      ...incoming,
+      colors: {
+        light: {
+          ...DEFAULT_SCREEN_COLORS_LIGHT,
+          ...(lightIn.pageBgColor ? { pageBgColor: lightIn.pageBgColor } : {}),
+          ...(lightIn.cardBgColor ? { cardBgColor: lightIn.cardBgColor } : {}),
+          ...(lightIn.titleColor ? { titleColor: lightIn.titleColor } : {}),
+          ...(lightIn.subtitleColor ? { subtitleColor: lightIn.subtitleColor } : {}),
+          ...(lightIn.submitBgColor ? { submitBgColor: lightIn.submitBgColor } : {}),
+          ...(lightIn.submitTextColor ? { submitTextColor: lightIn.submitTextColor } : {}),
+        },
+        dark: {
+          ...DEFAULT_SCREEN_COLORS_DARK,
+          ...(darkIn.pageBgColor ? { pageBgColor: darkIn.pageBgColor } : {}),
+          ...(darkIn.cardBgColor ? { cardBgColor: darkIn.cardBgColor } : {}),
+          ...(darkIn.titleColor ? { titleColor: darkIn.titleColor } : {}),
+          ...(darkIn.subtitleColor ? { subtitleColor: darkIn.subtitleColor } : {}),
+          ...(darkIn.submitBgColor ? { submitBgColor: darkIn.submitBgColor } : {}),
+          ...(darkIn.submitTextColor ? { submitTextColor: darkIn.submitTextColor } : {}),
+        },
+      },
+    };
+  }
+
+  const legacyLight: FormScreenColors = {};
+  if (incoming.pageBgColor) legacyLight.pageBgColor = incoming.pageBgColor;
+  if (incoming.cardBgColor) legacyLight.cardBgColor = incoming.cardBgColor;
+  if (incoming.titleColor) legacyLight.titleColor = incoming.titleColor;
+  if (incoming.subtitleColor) legacyLight.subtitleColor = incoming.subtitleColor;
+  if (incoming.submitBgColor) legacyLight.submitBgColor = incoming.submitBgColor;
+  if (incoming.submitTextColor) legacyLight.submitTextColor = incoming.submitTextColor;
 
   return {
     ...DEFAULT_SCREEN_STYLE,
     ...incoming,
     colors: {
-      light: {
-        ...DEFAULT_SCREEN_COLORS_LIGHT,
-        ...(lightIn.pageBgColor ? { pageBgColor: lightIn.pageBgColor } : {}),
-        ...(lightIn.cardBgColor ? { cardBgColor: lightIn.cardBgColor } : {}),
-        ...(lightIn.titleColor ? { titleColor: lightIn.titleColor } : {}),
-        ...(lightIn.subtitleColor ? { subtitleColor: lightIn.subtitleColor } : {}),
-        ...(lightIn.submitBgColor ? { submitBgColor: lightIn.submitBgColor } : {}),
-        ...(lightIn.submitTextColor ? { submitTextColor: lightIn.submitTextColor } : {}),
-      },
-      dark: {
-        ...DEFAULT_SCREEN_COLORS_DARK,
-        ...(darkIn.pageBgColor ? { pageBgColor: darkIn.pageBgColor } : {}),
-        ...(darkIn.cardBgColor ? { cardBgColor: darkIn.cardBgColor } : {}),
-        ...(darkIn.titleColor ? { titleColor: darkIn.titleColor } : {}),
-        ...(darkIn.subtitleColor ? { subtitleColor: darkIn.subtitleColor } : {}),
-        ...(darkIn.submitBgColor ? { submitBgColor: darkIn.submitBgColor } : {}),
-        ...(darkIn.submitTextColor ? { submitTextColor: darkIn.submitTextColor } : {}),
-      },
+      light: { ...DEFAULT_SCREEN_COLORS_LIGHT, ...legacyLight },
+      dark: { ...DEFAULT_SCREEN_COLORS_DARK },
     },
   };
 }
 
-  /* Legacy format — lump the old single-color fields into "light" */
- /* Only copy fields that actually have a value */
-const legacyLight: FormScreenColors = {};
-if (incoming.pageBgColor) legacyLight.pageBgColor = incoming.pageBgColor;
-if (incoming.cardBgColor) legacyLight.cardBgColor = incoming.cardBgColor;
-if (incoming.titleColor) legacyLight.titleColor = incoming.titleColor;
-if (incoming.subtitleColor) legacyLight.subtitleColor = incoming.subtitleColor;
-if (incoming.submitBgColor) legacyLight.submitBgColor = incoming.submitBgColor;
-if (incoming.submitTextColor) legacyLight.submitTextColor = incoming.submitTextColor;
-
-return {
-  ...DEFAULT_SCREEN_STYLE,
-  ...incoming,
-  colors: {
-    light: { ...DEFAULT_SCREEN_COLORS_LIGHT, ...legacyLight },
-    dark: { ...DEFAULT_SCREEN_COLORS_DARK },
-  },
-};
+export interface LoadOptions {
+  fallbackFields?: FieldConfig[];
+  fallbackScreen?: FormScreenStyle;
 }
 
-export function loadFormConfig(): FormConfig {
+export function loadFormConfig(
+  formKey: string = 'default',
+  options: LoadOptions = {},
+): FormConfig {
+  const fallbackFields = options.fallbackFields ?? [];
+  const fallbackScreen = options.fallbackScreen ?? DEFAULT_SCREEN_STYLE;
+
   try {
-    const raw = window.localStorage.getItem(FORM_CONFIG_KEY);
+    const key = formStorageKey(formKey);
+    let raw = window.localStorage.getItem(key);
+
+    if (!raw && formKey === 'default') {
+      raw = window.localStorage.getItem(FORM_CONFIG_KEY_LEGACY);
+    }
+
     if (!raw) {
       const seeded: FormConfig = {
-        fields: DEFAULT_FIELDS,
-        screen: DEFAULT_SCREEN_STYLE,
+        fields: fallbackFields,
+        screen: fallbackScreen,
       };
-      window.localStorage.setItem(FORM_CONFIG_KEY, JSON.stringify(seeded));
+      window.localStorage.setItem(key, JSON.stringify(seeded));
       return seeded;
     }
+
     const parsed = JSON.parse(raw) as Partial<FormConfig>;
     if (!Array.isArray(parsed.fields) || parsed.fields.length === 0) {
-      return { fields: DEFAULT_FIELDS, screen: DEFAULT_SCREEN_STYLE };
+      return { fields: fallbackFields, screen: fallbackScreen };
     }
     return {
       fields: parsed.fields.map((f, i) => normalizeField(f, i)),
       screen: migrateScreen(parsed.screen),
     };
   } catch {
-    return { fields: DEFAULT_FIELDS, screen: DEFAULT_SCREEN_STYLE };
+    return { fields: fallbackFields, screen: fallbackScreen };
   }
 }
 
-export function saveFormConfig(config: FormConfig): void {
-  window.localStorage.setItem(FORM_CONFIG_KEY, JSON.stringify(config));
+export function saveFormConfig(
+  config: FormConfig,
+  formKey: string = 'default',
+): void {
+  try {
+    window.localStorage.setItem(formStorageKey(formKey), JSON.stringify(config));
+  } catch {
+    /* storage full or unavailable */
+  }
 }
 
-/* ============================================================
- *  HOOKS
- * ============================================================ */
+export function resetFormConfig(formKey: string = 'default'): void {
+  try {
+    window.localStorage.removeItem(formStorageKey(formKey));
+  } catch {
+    /* ignore */
+  }
+}
 
 const MOBILE_MAX = 599;
 const TABLET_MAX = 899;
@@ -522,10 +493,6 @@ export function useBreakpoint(): Breakpoint {
 
   return bp;
 }
-
-/* ============================================================
- *  FIELD RENDERER
- * ============================================================ */
 
 const SingleCheckbox: FC<{ name: string; label: string; disabled?: boolean }> = ({
   name,

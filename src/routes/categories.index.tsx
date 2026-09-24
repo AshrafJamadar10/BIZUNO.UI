@@ -1,43 +1,556 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
+  Typography,
+  alpha,
+  useTheme,
+} from "@mui/material";
+import { Plus, FolderTree } from "lucide-react";
+import {
+  FormProvider,
+  useForm,
+  useWatch,
+  type FieldValues,
+} from "react-hook-form";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
-import { PageHeader } from "@/components/common/PageHeader";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { MenuItem, TextField } from "@mui/material";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory } from "@/hooks/queries/products";
-import { Pagination } from "@/components/common/Pagination";
+import UniversalTable, {
+  ACTION_KEY,
+  type Column,
+} from "@/components/MUI/UniversalTable";
+import {
+  FieldRenderer,
+  evaluateCalculation,
+  evaluateCondition,
+  loadFormConfig,
+  useBreakpoint,
+  type FormConfig,
+} from "@/utils/FormHandling/FormEngine";
+import {
+  useCategories,
+  useCreateCategory,
+  useDeleteCategory,
+  useUpdateCategory,
+} from "@/hooks/queries/products";
+import type { CategoryInput } from "@/types";
 
-export const Route = createFileRoute("/categories/")({ component: CategoriesPage });
+type Category = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  productCount: number;
+  status: "active" | "inactive";
+};
 
-const EMPTY = { name: "", parentId: null as string | null, status: "active" as "active" | "inactive" };
+type TableRow = Category & Record<string, unknown>;
+type SortDir = "asc" | "desc";
+
+export const Route = createFileRoute("/categories/")({
+  head: () => ({
+    meta: [{ title: "Product Categories — BizUno" }],
+  }),
+  component: CategoriesPage,
+});
 
 function CategoriesPage() {
-  const [page, setPage] = useState(1); const [pageSize, setPageSize] = useState(10); const [open, setOpen] = useState(false);
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const breakpoint = useBreakpoint();
+
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<keyof Category>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(EMPTY);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const [schema, setSchema] = useState<FormConfig>({ fields: [] });
+
+  const methods = useForm<FieldValues>({
+    defaultValues: {},
+    mode: "onChange",
+  });
+
+  const { reset, handleSubmit, formState, control, setValue, getValues } = methods;
+
   const { data: categories = [] } = useCategories();
   const create = useCreateCategory();
   const update = useUpdateCategory();
   const remove = useDeleteCategory();
-  const close = () => { setOpen(false); setEditingId(null); setForm(EMPTY); };
-  const visibleCategories = categories.slice((page - 1) * pageSize, page * pageSize);
 
-  return <AppShell>
-    <PageHeader title="Product categories" description="Organise products into clear, reusable catalogue groups." crumbs={[{ label: "Home", to: "/" }, { label: "Product categories" }]} actions={<Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button><Plus className="size-4" /> New category</Button></DialogTrigger>
-      <DialogContent><DialogHeader><DialogTitle>{editingId ? "Edit category" : "Add category"}</DialogTitle></DialogHeader>
-        <div className="space-y-3 pt-2"><div><TextField fullWidth size="small" label="Name" id="category-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-          <div><TextField fullWidth size="small" select label="Status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as "active" | "inactive" })}><MenuItem value="active">Active</MenuItem><MenuItem value="inactive">Inactive</MenuItem></TextField></div>
-        </div>
-        <DialogFooter><Button variant="outline" onClick={close}>Cancel</Button><Button disabled={!form.name.trim() || create.isPending || update.isPending} onClick={() => { const options = { onSuccess: () => { toast.success(editingId ? "Category updated" : "Category added"); close(); }, onError: (error: Error) => toast.error(error.message) }; if (editingId) update.mutate({ id: editingId, input: form }, options); else create.mutate(form, options); }}>{editingId ? "Save changes" : "Save category"}</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>} />
-    <Card className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Category</TableHead><TableHead>Parent category</TableHead><TableHead>Products</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{visibleCategories.map((category) => <TableRow key={category.id}><TableCell className="font-medium">{category.name}</TableCell><TableCell className="text-sm text-muted-foreground">{categories.find((parent) => parent.id === category.parentId)?.name ?? "—"}</TableCell><TableCell>{category.productCount}</TableCell><TableCell><StatusBadge status={category.status} /></TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" aria-label={`Edit ${category.name}`} onClick={() => { setEditingId(category.id); setForm({ name: category.name, parentId: category.parentId, status: category.status }); setOpen(true); }}><Pencil className="size-4 text-muted-foreground" /></Button><Button variant="ghost" size="icon" aria-label={`Delete ${category.name}`} onClick={() => remove.mutate(category.id, { onSuccess: () => toast.success("Category deleted"), onError: (error: Error) => toast.error(error.message) })}><Trash2 className="size-4 text-muted-foreground" /></Button></TableCell></TableRow>)}</TableBody></Table>    </div><Pagination page={page} pageSize={pageSize} total={categories.length} onPageChange={setPage} onPageSizeChange={setPageSize} /></Card>
-  </AppShell>;
+  useEffect(() => {
+    const loaded = loadFormConfig("category");
+    setSchema(loaded);
+  }, []);
+
+  const orderedFields = useMemo(
+    () => [...schema.fields].sort((a, b) => a.order - b.order),
+    [schema.fields],
+  );
+
+  const watchedValues = useWatch({ control }) as
+    | Record<string, unknown>
+    | undefined;
+
+  const currentValues = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(watchedValues ?? {})) {
+      out[k] = v === undefined || v === null ? "" : String(v);
+    }
+    return out;
+  }, [watchedValues]);
+
+  const visibleFields = useMemo(
+    () =>
+      orderedFields
+        .filter((f) => f.type !== "heading" && f.type !== "divider")
+        .filter((f) => evaluateCondition(f.condition, currentValues)),
+    [orderedFields, currentValues],
+  );
+
+  useEffect(() => {
+    for (const field of orderedFields) {
+      if (!field.calculation.enabled) continue;
+      const computed = evaluateCalculation(field.calculation, currentValues);
+      const existing = getValues(field.name);
+      if (existing !== computed) {
+        setValue(field.name, computed, {
+          shouldValidate: false,
+          shouldDirty: false,
+        });
+      }
+    }
+  }, [orderedFields, currentValues, getValues, setValue]);
+
+  const buildEmptyValues = useCallback((): Record<string, unknown> => {
+    const out: Record<string, unknown> = {};
+    for (const f of orderedFields) {
+      out[f.name] = f.defaultValue ?? "";
+    }
+    return out;
+  }, [orderedFields]);
+
+  const buildValuesFromRow = useCallback(
+    (row: TableRow): Record<string, unknown> => {
+      const out: Record<string, unknown> = {};
+      for (const f of orderedFields) {
+        const raw = (row as Record<string, unknown>)[f.name];
+        out[f.name] =
+          raw === undefined || raw === null ? f.defaultValue ?? "" : raw;
+      }
+      return out;
+    },
+    [orderedFields],
+  );
+
+  const rows = useMemo<TableRow[]>(
+    () => (categories as Category[]).map((c) => ({ ...c })),
+    [categories],
+  );
+
+  const filteredRows = useMemo(() => {
+    if (!search.trim()) return rows;
+    const q = search.toLowerCase();
+    return rows.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        (r.status ?? "").toString().toLowerCase().includes(q),
+    );
+  }, [rows, search]);
+
+  const sortedRows = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filteredRows].sort((a, b) => {
+      const va = a[sortKey];
+      const vb = b[sortKey];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === "number" && typeof vb === "number") {
+        return (va - vb) * dir;
+      }
+      return String(va).localeCompare(String(vb)) * dir;
+    });
+  }, [filteredRows, sortKey, sortDir]);
+
+  const paginatedRows = useMemo(() => {
+    return sortedRows.slice((page - 1) * pageSize, page * pageSize);
+  }, [sortedRows, page, pageSize]);
+
+  const palette = useMemo(
+    () => ({
+      dialogBg: theme.palette.background.paper,
+      dialogBorder: alpha(theme.palette.divider, isDark ? 0.5 : 0.7),
+      textPrimary: theme.palette.text.primary,
+      textMuted: theme.palette.text.secondary,
+    }),
+    [theme, isDark],
+  );
+
+  const parentNameFor = useCallback(
+    (parentId: string | null): string => {
+      if (!parentId) return "—";
+      const parent = categories.find((c) => c.id === parentId);
+      return parent?.name ?? "—";
+    },
+    [categories],
+  );
+
+  const handleEdit = useCallback(
+    (row: TableRow) => {
+      setEditingId(row.id);
+      reset(buildValuesFromRow(row));
+      setOpen(true);
+    },
+    [reset, buildValuesFromRow],
+  );
+
+  const handleDelete = useCallback((row: TableRow) => {
+    setDeleteId(row.id);
+  }, []);
+
+  const handleSort = useCallback((key: keyof Category, dir: SortDir) => {
+    setSortKey(key);
+    setSortDir(dir);
+    setPage(1);
+  }, []);
+
+  const columns = useMemo<Column<TableRow>[]>(
+    () => [
+      {
+        key: "name",
+        label: "Category",
+        width: 240,
+        sortable: true,
+        render: (row) => (
+          <Typography
+            component="span"
+            sx={{
+              fontWeight: 600,
+              fontSize: 13.5,
+              color: theme.palette.primary.main,
+              lineHeight: 1.3,
+            }}
+          >
+            {row.name}
+          </Typography>
+        ),
+      },
+      {
+        key: "parentId",
+        label: "Parent category",
+        width: 200,
+        render: (row) => (
+          <Typography
+            variant="body2"
+            sx={{ fontSize: 13, color: palette.textMuted }}
+          >
+            {parentNameFor(row.parentId)}
+          </Typography>
+        ),
+      },
+      {
+        key: "productCount",
+        label: "Products",
+        width: 120,
+        align: "right",
+        sortable: true,
+        render: (row) => (
+          <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+            {row.productCount}
+          </Typography>
+        ),
+      },
+      {
+        key: "status",
+        label: "Status",
+        width: 110,
+        align: "center",
+        render: (row) => <StatusBadge status={row.status} />,
+      },
+      {
+        key: ACTION_KEY,
+        label: "Actions",
+        align: "center",
+        width: 90,
+      },
+    ],
+    [palette.textMuted, theme.palette.primary.main, parentNameFor],
+  );
+
+  const actions = useMemo(
+    () => ({
+      edit: handleEdit,
+      delete: handleDelete,
+    }),
+    [handleEdit, handleDelete],
+  );
+
+  const submitForm = handleSubmit((values) => {
+    const payload = values as unknown as CategoryInput;
+
+    const onSuccess = () => {
+      toast.success(editingId ? "Category updated" : "Category added");
+      setOpen(false);
+      setEditingId(null);
+      reset(buildEmptyValues());
+    };
+
+    if (editingId) {
+      update.mutate({ id: editingId, input: payload }, { onSuccess });
+    } else {
+      create.mutate(payload, { onSuccess });
+    }
+  });
+
+  const handleCloseDialog = useCallback(() => {
+    setOpen(false);
+    setEditingId(null);
+    reset(buildEmptyValues());
+  }, [reset, buildEmptyValues]);
+
+  const handleOpenCreate = useCallback(() => {
+    setEditingId(null);
+    reset(buildEmptyValues());
+    setOpen(true);
+  }, [reset, buildEmptyValues]);
+
+  const handleBulkDelete = useCallback(
+    (selected: TableRow[]) => {
+      selected.forEach((row) => {
+        remove.mutate(row.id, {
+          onSuccess: () => toast.success(`${row.name} deleted`),
+          onError: (error: Error) => toast.error(error.message),
+        });
+      });
+    },
+    [remove],
+  );
+
+  const totalCount = sortedRows.length;
+
+  return (
+    <AppShell>
+      <UniversalTable<TableRow>
+        data={paginatedRows}
+        columns={columns}
+        getRowId={(row) => row.id}
+        rowsPerPage={pageSize}
+        showSrNo={false}
+        tableSize="medium"
+
+        header={{
+          title: "Product Categories",
+          subtitle:
+            "Organise products into clear, reusable catalogue groups.",
+          countLabel: () => `${totalCount} categories`,
+        }}
+
+        toolbar={{
+          right: (
+            <Button
+              variant="contained"
+              startIcon={<Plus size={16} />}
+              onClick={handleOpenCreate}
+              sx={{
+                textTransform: "none",
+                borderRadius: 2,
+                fontSize: 13,
+                py: 0.75,
+                px: 1.75,
+                boxShadow: "none",
+                bgcolor: theme.palette.primary.main,
+                "&:hover": {
+                  bgcolor: theme.palette.primary.dark,
+                  boxShadow: "none",
+                },
+              }}
+            >
+              New category
+            </Button>
+          ),
+        }}
+
+        search={{
+          enabled: true,
+          placeholder: "Search categories",
+          highlightColor: isDark ? "#facc15" : "#ffeb3b",
+          value: search,
+          onChange: (v) => {
+            setSearch(v);
+            setPage(1);
+          },
+        }}
+
+        export={{
+          enabled: true,
+          mode: "all",
+          filename: "categories",
+          showExcel: true,
+          showCSV: true,
+          showPDF: true,
+          showPrint: true,
+          showCopy: false,
+          showWord: false,
+        }}
+
+        sortable={{
+          enabled: true,
+          defaultKey: sortKey,
+          defaultDir: sortDir,
+          mode: "client",
+          onChange: (key, dir) => handleSort(key as keyof Category, dir),
+        }}
+
+        mode={{
+          type: "server",
+          total: totalCount,
+          page: page - 1,
+          pageSize,
+          onPageChange: (p) => setPage(p + 1),
+        }}
+
+        actions={actions}
+
+        enableCheckbox
+        onDeleteSelected={handleBulkDelete}
+
+        emptyState={{
+          message: "No categories found",
+          description:
+            "Try a different search, or add your first category to get started.",
+          icon: (
+            <FolderTree size={48} style={{ color: palette.textMuted, opacity: 0.5 }} />
+          ),
+          action: {
+            label: "Add category",
+            onClick: handleOpenCreate,
+            icon: <Plus size={14} />,
+          },
+        }}
+
+        styles={{ paper: { borderRadius: 2 } }}
+      />
+
+      <Dialog
+        open={open}
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 2,
+              bgcolor: palette.dialogBg,
+              border: `1px solid ${palette.dialogBorder}`,
+              backgroundImage: "none",
+            },
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            fontWeight: 700,
+            fontSize: 20,
+            color: palette.textPrimary,
+            px: 3,
+            pt: 2.5,
+            pb: 0,
+          }}
+        >
+          {editingId ? "Edit category" : "Add category"}
+        </DialogTitle>
+
+        <FormProvider {...methods}>
+          <form onSubmit={submitForm} noValidate>
+            <DialogContent sx={{ px: 3, pt: 2.5, pb: 2 }}>
+              <Grid container rowSpacing={2} columnSpacing={2}>
+                {visibleFields.map((field) => {
+                  const layout = field.layout[breakpoint];
+                  return (
+                    <Grid
+                      key={field.id}
+                      size={{ xs: 12, sm: layout.colSpan }}
+                    >
+                      <FieldRenderer field={field} />
+                    </Grid>
+                  );
+                })}
+                {visibleFields.length === 0 && (
+                  <Grid size={{ xs: 12 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No fields configured. Add fields from the Form Handling tab.
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </DialogContent>
+
+            <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+              <Button
+                variant="outlined"
+                onClick={handleCloseDialog}
+                sx={{
+                  textTransform: "none",
+                  borderColor: palette.dialogBorder,
+                  color: palette.textPrimary,
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                type="submit"
+                disabled={
+                  !formState.isValid ||
+                  create.isPending ||
+                  update.isPending
+                }
+                sx={{
+                  textTransform: "none",
+                  bgcolor: theme.palette.primary.main,
+                  "&:hover": { bgcolor: theme.palette.primary.dark },
+                }}
+              >
+                {editingId ? "Save changes" : "Save category"}
+              </Button>
+            </DialogActions>
+          </form>
+        </FormProvider>
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteId !== null}
+        onOpenChange={(v) => !v && setDeleteId(null)}
+        title="Delete category?"
+        description="This removes the category from your catalogue. Products using it keep their data."
+        confirmLabel="Delete"
+        loading={remove.isPending}
+        onConfirm={() => {
+          if (!deleteId) return;
+          remove.mutate(deleteId, {
+            onSuccess: () => {
+              toast.success("Category deleted");
+              setDeleteId(null);
+            },
+            onError: (error: Error) => {
+              toast.error(error.message);
+              setDeleteId(null);
+            },
+          });
+        }}
+      />
+    </AppShell>
+  );
 }
