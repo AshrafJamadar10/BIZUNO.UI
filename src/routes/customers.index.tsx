@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Box,
@@ -13,7 +13,12 @@ import {
   useTheme,
 } from "@mui/material";
 import { Plus, Users, Archive, Mail } from "lucide-react";
-import { FormProvider, useForm } from "react-hook-form";
+import {
+  FormProvider,
+  useForm,
+  useWatch,
+  type FieldValues,
+} from "react-hook-form";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -22,16 +27,21 @@ import UniversalTable, {
   ACTION_KEY,
   type Column,
 } from "@/components/MUI/UniversalTable";
-import TextInputField from "@/components/MUI/TextInputField";
-import MobileField from "@/components/MUI/MobileField";
-import EmailField from "@/components/MUI/EmailField";
-import RadioField from "@/components/MUI/RadioField";
+import {
+  FieldRenderer,
+  evaluateCalculation,
+  evaluateCondition,
+  loadFormConfig,
+  useBreakpoint,
+  type FormConfig,
+} from "@/utils/FormHandling/FormEngine";
 import {
   useCreateCustomer,
   useCustomers,
   useDeleteCustomer,
   useUpdateCustomer,
 } from "@/hooks/queries/customers";
+import type { CustomerInput } from "@/types";
 import { formatCurrency, formatDate } from "@/utils/format";
 
 type Customer = {
@@ -51,19 +61,6 @@ type Customer = {
 };
 
 type TableRow = Customer & Record<string, unknown>;
-
-type CustomerForm = {
-  name: string;
-  contactPerson: string;
-  phone: string;
-  email: string;
-  gstin: string;
-  city: string;
-  state: string;
-  address: string;
-  status: "active" | "inactive";
-};
-
 type SortDir = "asc" | "desc";
 
 export const Route = createFileRoute("/customers/")({
@@ -73,27 +70,11 @@ export const Route = createFileRoute("/customers/")({
   component: CustomersPage,
 });
 
-const EMPTY_FORM: CustomerForm = {
-  name: "",
-  contactPerson: "",
-  phone: "",
-  email: "",
-  gstin: "",
-  city: "",
-  state: "",
-  address: "",
-  status: "active",
-};
-
-const STATUS_OPTIONS = [
-  { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" },
-];
-
 function CustomersPage() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const navigate = useNavigate();
+  const breakpoint = useBreakpoint();
 
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
@@ -105,17 +86,84 @@ function CustomersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const methods = useForm<CustomerForm>({
-    defaultValues: EMPTY_FORM,
+  const [schema, setSchema] = useState<FormConfig>({ fields: [] });
+
+  const methods = useForm<FieldValues>({
+    defaultValues: {},
     mode: "onChange",
   });
 
-  const { reset, handleSubmit, formState } = methods;
+  const { reset, handleSubmit, formState, control, setValue, getValues } = methods;
 
   const { data, isLoading } = useCustomers({ search, page, pageSize });
   const create = useCreateCustomer();
   const remove = useDeleteCustomer();
   const update = useUpdateCustomer();
+
+  useEffect(() => {
+    const loaded = loadFormConfig("customer");
+    setSchema(loaded);
+  }, []);
+
+  const orderedFields = useMemo(
+    () => [...schema.fields].sort((a, b) => a.order - b.order),
+    [schema.fields],
+  );
+
+  const watchedValues = useWatch({ control }) as
+    | Record<string, unknown>
+    | undefined;
+
+  const currentValues = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(watchedValues ?? {})) {
+      out[k] = v === undefined || v === null ? "" : String(v);
+    }
+    return out;
+  }, [watchedValues]);
+
+  const visibleFields = useMemo(
+    () =>
+      orderedFields
+        .filter((f) => f.type !== "heading" && f.type !== "divider")
+        .filter((f) => evaluateCondition(f.condition, currentValues)),
+    [orderedFields, currentValues],
+  );
+
+  useEffect(() => {
+    for (const field of orderedFields) {
+      if (!field.calculation.enabled) continue;
+      const computed = evaluateCalculation(field.calculation, currentValues);
+      const existing = getValues(field.name);
+      if (existing !== computed) {
+        setValue(field.name, computed, {
+          shouldValidate: false,
+          shouldDirty: false,
+        });
+      }
+    }
+  }, [orderedFields, currentValues, getValues, setValue]);
+
+  const buildEmptyValues = useCallback((): Record<string, unknown> => {
+    const out: Record<string, unknown> = {};
+    for (const f of orderedFields) {
+      out[f.name] = f.defaultValue ?? "";
+    }
+    return out;
+  }, [orderedFields]);
+
+  const buildValuesFromRow = useCallback(
+    (row: TableRow): Record<string, unknown> => {
+      const out: Record<string, unknown> = {};
+      for (const f of orderedFields) {
+        const raw = (row as Record<string, unknown>)[f.name];
+        out[f.name] =
+          raw === undefined || raw === null ? f.defaultValue ?? "" : raw;
+      }
+      return out;
+    },
+    [orderedFields],
+  );
 
   const rows = useMemo<TableRow[]>(
     () => ((data?.rows ?? []) as Customer[]).map((r) => ({ ...r })),
@@ -135,20 +183,10 @@ function CustomersPage() {
   const handleEdit = useCallback(
     (row: TableRow) => {
       setEditingId(row.id);
-      reset({
-        name: row.name,
-        contactPerson: row.contactPerson,
-        phone: row.phone,
-        email: row.email,
-        gstin: row.gstin ?? "",
-        city: row.city,
-        state: row.state,
-        address: row.address,
-        status: row.status,
-      });
+      reset(buildValuesFromRow(row));
       setOpen(true);
     },
-    [reset],
+    [reset, buildValuesFromRow],
   );
 
   const handleDelete = useCallback((row: TableRow) => {
@@ -277,31 +315,33 @@ function CustomersPage() {
   );
 
   const submitForm = handleSubmit((values) => {
+    const payload = values as unknown as CustomerInput;
+
     const onSuccess = () => {
       toast.success(editingId ? "Customer updated" : "Customer added");
       setOpen(false);
       setEditingId(null);
-      reset(EMPTY_FORM);
+      reset(buildEmptyValues());
     };
 
     if (editingId) {
-      update.mutate({ id: editingId, input: values }, { onSuccess });
+      update.mutate({ id: editingId, input: payload }, { onSuccess });
     } else {
-      create.mutate(values, { onSuccess });
+      create.mutate(payload, { onSuccess });
     }
   });
 
   const handleCloseDialog = useCallback(() => {
     setOpen(false);
     setEditingId(null);
-    reset(EMPTY_FORM);
-  }, [reset]);
+    reset(buildEmptyValues());
+  }, [reset, buildEmptyValues]);
 
   const handleOpenCreate = useCallback(() => {
     setEditingId(null);
-    reset(EMPTY_FORM);
+    reset(buildEmptyValues());
     setOpen(true);
-  }, [reset]);
+  }, [reset, buildEmptyValues]);
 
   const handleBulkArchive = useCallback(
     (selected: TableRow[]) => {
@@ -309,14 +349,7 @@ function CustomersPage() {
         update.mutate({
           id: row.id,
           input: {
-            name: row.name,
-            contactPerson: row.contactPerson,
-            phone: row.phone,
-            email: row.email,
-            gstin: row.gstin ?? "",
-            city: row.city,
-            state: row.state,
-            address: row.address,
+            ...(row as unknown as CustomerInput),
             status: "inactive",
           },
         });
@@ -361,14 +394,12 @@ function CustomersPage() {
         rowsPerPage={pageSize}
         showSrNo={false}
         tableSize="medium"
-
         header={{
           title: "Customers",
           subtitle:
             "Every account you sell to, with live outstanding balances.",
           countLabel: (n) => `${n} customers`,
         }}
-
         toolbar={{
           right: (
             <Button
@@ -393,7 +424,6 @@ function CustomersPage() {
             </Button>
           ),
         }}
-
         search={{
           enabled: true,
           placeholder: "Search by name, city or phone",
@@ -404,7 +434,6 @@ function CustomersPage() {
             setPage(1);
           },
         }}
-
         export={{
           enabled: true,
           mode: "all",
@@ -416,7 +445,6 @@ function CustomersPage() {
           showCopy: false,
           showWord: false,
         }}
-
         sortable={{
           enabled: true,
           defaultKey: sortKey,
@@ -424,7 +452,6 @@ function CustomersPage() {
           mode: "server",
           onChange: (key, dir) => handleSort(key as keyof Customer, dir),
         }}
-
         mode={{
           type: "server",
           total: totalCount,
@@ -432,11 +459,8 @@ function CustomersPage() {
           pageSize,
           onPageChange: (p) => setPage(p + 1),
         }}
-
         rowClick={{ target: "all", handler: handleRowClick }}
-
         actions={actions}
-
         enableCheckbox
         bulkActions={[
           {
@@ -454,7 +478,6 @@ function CustomersPage() {
           },
         ]}
         onDeleteSelected={handleBulkDelete}
-
         emptyState={{
           message: "No customers found",
           description:
@@ -468,7 +491,6 @@ function CustomersPage() {
             icon: <Plus size={14} />,
           },
         }}
-
         styles={{ paper: { borderRadius: 2 } }}
       />
 
@@ -505,69 +527,24 @@ function CustomersPage() {
           <form onSubmit={submitForm} noValidate>
             <DialogContent sx={{ px: 3, pt: 2.5, pb: 2 }}>
               <Grid container rowSpacing={2} columnSpacing={2}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextInputField
-                    name="name"
-                    label="Business name"
-                    required
-                    inputType="alphanumeric"
-                    maxLength={80}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextInputField
-                    name="contactPerson"
-                    label="Contact person"
-                    inputType="alphabet"
-                    maxLength={60}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <MobileField name="phone" label="Phone" />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <EmailField name="email" label="Email" />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextInputField
-                    name="gstin"
-                    label="GSTIN"
-                    inputType="alphanumeric"
-                    maxLength={15}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextInputField
-                    name="city"
-                    label="City"
-                    inputType="alphabet"
-                    maxLength={50}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextInputField
-                    name="state"
-                    label="State"
-                    inputType="alphabet"
-                    maxLength={50}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <RadioField
-                    name="status"
-                    label="Status"
-                    options={STATUS_OPTIONS}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12 }}>
-                  <TextInputField
-                    name="address"
-                    label="Address"
-                    inputType="all"
-                    rows={2}
-                    maxLength={200}
-                  />
-                </Grid>
+                {visibleFields.map((field) => {
+                  const layout = field.layout[breakpoint];
+                  return (
+                    <Grid
+                      key={field.id}
+                      size={{ xs: 12, sm: layout.colSpan }}
+                    >
+                      <FieldRenderer field={field} />
+                    </Grid>
+                  );
+                })}
+                {visibleFields.length === 0 && (
+                  <Grid size={{ xs: 12 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No fields configured. Add fields from the Form Handling tab.
+                    </Typography>
+                  </Grid>
+                )}
               </Grid>
             </DialogContent>
 

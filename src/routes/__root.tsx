@@ -94,14 +94,22 @@ export const Route = createRootRouteWithContext<{
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "BizUno — Business Management" },
+      {
+        name: "description",
+        content:
+          "Run your business with clarity. Sales, inventory, purchasing, payments and people in one workspace.",
+      },
+      { name: "author", content: "BizUno" },
+      { property: "og:title", content: "BizUno — Business Management" },
+      {
+        property: "og:description",
+        content:
+          "Sales, inventory, purchasing and payments in one calm, powerful workspace.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@BizUno" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
