@@ -212,8 +212,6 @@ export const DEFAULT_SCREEN_STYLE: FormScreenStyle = {
   },
 };
 
-
-
 export function formStorageKey(formKey: string): string {
   return `${FORM_CONFIG_KEY_PREFIX}${formKey}`;
 }
@@ -310,9 +308,129 @@ export function evaluateCalculation(
   }
 }
 
+function evaluateCalculationSafe(
+  calc: FieldCalculation,
+  values: Record<string, string>,
+  visibility: Record<string, boolean>,
+): string {
+  if (!calc.enabled || !calc.expression.trim()) return '';
+  if (!CALC_ALLOWED.test(calc.expression)) return '';
+
+  let substituted = calc.expression;
+  for (const dep of calc.dependsOn) {
+    const visible = visibility[dep] ?? true;
+    const raw = visible ? (values[dep] ?? '0') : '0';
+    const numeric = Number(raw);
+    const safe = Number.isFinite(numeric) ? String(numeric) : '0';
+    substituted = substituted.split(`{${dep}}`).join(safe);
+  }
+  if (/[{}a-zA-Z_]/.test(substituted)) return '';
+
+  try {
+    const result = Function(`"use strict"; return (${substituted});`)() as unknown;
+    if (typeof result === 'number' && Number.isFinite(result)) {
+      return String(Math.round(result * 100) / 100);
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}
+
 export function extractDependencies(expression: string): string[] {
   const matches = expression.match(/\{([a-zA-Z0-9_]+)\}/g) ?? [];
   return matches.map((m) => m.slice(1, -1));
+}
+
+export function buildDependencyGraph(fields: FieldConfig[]): Map<string, Set<string>> {
+  const graph = new Map<string, Set<string>>();
+  for (const f of fields) {
+    const deps = new Set<string>();
+    if (f.condition?.fieldName) deps.add(f.condition.fieldName);
+    for (const dep of f.calculation.dependsOn ?? []) deps.add(dep);
+    graph.set(f.name, deps);
+  }
+  return graph;
+}
+
+export function topoSort(
+  fields: FieldConfig[],
+): { order: FieldConfig[]; cycles: string[] } {
+  const graph = buildDependencyGraph(fields);
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+  const result: FieldConfig[] = [];
+  const cycles: string[] = [];
+  const byName = new Map(fields.map((f) => [f.name, f]));
+
+  const visit = (name: string) => {
+    if (visited.has(name)) return;
+    if (visiting.has(name)) {
+      cycles.push(name);
+      return;
+    }
+    visiting.add(name);
+    const deps = graph.get(name) ?? new Set<string>();
+    for (const dep of deps) {
+      if (byName.has(dep)) visit(dep);
+    }
+    visiting.delete(name);
+    visited.add(name);
+    const field = byName.get(name);
+    if (field) result.push(field);
+  };
+
+  for (const f of fields) visit(f.name);
+  return { order: result, cycles };
+}
+
+export interface ResolvedForm {
+  values: Record<string, string>;
+  visibility: Record<string, boolean>;
+  errors: string[];
+}
+
+export function resolveForm(
+  schema: FormConfig,
+  rawInputs: Record<string, unknown>,
+): ResolvedForm {
+  const { order, cycles } = topoSort(schema.fields);
+  const errors: string[] = [];
+  if (cycles.length) {
+    errors.push(`Circular dependency detected: ${cycles.join(', ')}`);
+  }
+
+  const values: Record<string, string> = {};
+  const visibility: Record<string, boolean> = {};
+
+  for (const f of schema.fields) {
+    const raw = rawInputs[f.name];
+    values[f.name] =
+      raw === undefined || raw === null ? f.defaultValue ?? '' : String(raw);
+  }
+
+  for (const field of order) {
+    const visible = field.condition
+      ? evaluateCondition(field.condition, values)
+      : true;
+    visibility[field.name] = visible;
+
+    if (field.calculation.enabled && visible) {
+      values[field.name] = evaluateCalculationSafe(
+        field.calculation,
+        values,
+        visibility,
+      );
+    } else if (!visible) {
+      values[field.name] = '0';
+    }
+  }
+
+  return { values, visibility, errors };
+}
+
+export function isCalculated(field: FieldConfig): boolean {
+  return field.calculation.enabled;
 }
 
 export function normalizeField(field: Partial<FieldConfig>, index: number): FieldConfig {
@@ -525,175 +643,232 @@ export interface FieldRendererProps {
   previewMode?: boolean;
 }
 
-export const FieldRenderer: FC<FieldRendererProps> = memo(({ field, previewMode = false }) => {
-  const wrapperSx = previewMode ? { pointerEvents: 'none' as const } : {};
-  const extraProps = field.props ?? {};
+export const FieldRenderer: FC<FieldRendererProps> = memo(
+  ({ field, previewMode = false }) => {
+    const wrapperSx = previewMode ? { pointerEvents: 'none' as const } : {};
+    const extraProps = field.props ?? {};
+    const isCalc = field.calculation.enabled;
+    const locked = previewMode || isCalc;
 
-  if (field.type === 'heading') {
-    return (
-      <Box sx={wrapperSx}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-          {field.label}
-        </Typography>
-        {field.helper && (
-          <Typography variant="caption" color="text.secondary">
-            {field.helper}
+    if (field.type === 'heading') {
+      return (
+        <Box sx={wrapperSx}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            {field.label}
           </Typography>
-        )}
-      </Box>
-    );
-  }
+          {field.helper && (
+            <Typography variant="caption" color="text.secondary">
+              {field.helper}
+            </Typography>
+          )}
+        </Box>
+      );
+    }
 
-  if (field.type === 'divider') {
-    return (
-      <Divider
-        sx={(t) => ({
-          my: 1,
-          borderColor:
-            t.palette.mode === 'dark'
-              ? 'rgba(255, 255, 255, 0.12)'
-              : 'rgba(15, 23, 42, 0.22)',
-        })}
-      />
-    );
-  }
-
-  switch (field.type) {
-    case 'text':
-    case 'textarea':
+    if (field.type === 'divider') {
       return (
-        <TextInputField
-          name={field.name}
-          label={field.label}
-          required={field.required}
-          placeholder={field.placeholder}
-          inputType={field.type === 'textarea' ? 'textarea' : 'all'}
-          disabled={previewMode}
-          sx={wrapperSx}
-          {...extraProps}
+        <Divider
+          sx={(t) => ({
+            my: 1,
+            borderColor:
+              t.palette.mode === 'dark'
+                ? 'rgba(255, 255, 255, 0.12)'
+                : 'rgba(15, 23, 42, 0.22)',
+          })}
         />
       );
+    }
 
-    case 'email':
-      return (
-        <EmailField name={field.name} label={field.label} required={field.required}
-          disabled={previewMode} sx={wrapperSx} {...extraProps} />
-      );
+    switch (field.type) {
+      case 'text':
+      case 'textarea':
+        return (
+          <TextInputField
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            placeholder={field.placeholder}
+            inputType={field.type === 'textarea' ? 'textarea' : 'all'}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'mobile':
-      return (
-        <MobileField name={field.name} label={field.label} required={field.required}
-          disabled={previewMode} sx={wrapperSx} {...extraProps} />
-      );
+      case 'email':
+        return (
+          <EmailField
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'aadhaar':
-      return (
-        <AadhaarCardField name={field.name} label={field.label} required={field.required}
-          disabled={previewMode} sx={wrapperSx} {...extraProps} />
-      );
+      case 'mobile':
+        return (
+          <MobileField
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'search':
-      return (
-        <SearchField name={field.name} label={field.label} required={field.required}
-          disabled={previewMode} sx={wrapperSx} {...extraProps} />
-      );
+      case 'aadhaar':
+        return (
+          <AadhaarCardField
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'password':
-      return (
-        <PasswordField name={field.name} label={field.label} required={field.required}
-          disabled={previewMode} sx={wrapperSx} {...extraProps} />
-      );
+      case 'search':
+        return (
+          <SearchField
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'number':
-      return (
-        <NumericField name={field.name} label={field.label} required={field.required}
-          disabled={previewMode} sx={wrapperSx} {...extraProps} />
-      );
+      case 'password':
+        return (
+          <PasswordField
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'select':
-    case 'multiselect':
-      return (
-        <DropdownField
-          name={field.name}
-          label={field.label}
-          required={field.required}
-          options={field.options.map((o) => ({
-            value: o,
-            label: field.optionLabels?.[o] ?? o,
-          }))}
-          disabled={previewMode}
-          sx={wrapperSx}
-          {...extraProps}
-        />
-      );
+      case 'number':
+        return (
+          <NumericField
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'radio':
-      return (
-        <RadioField
-          name={field.name}
-          label={field.label}
-          required={field.required}
-          options={field.options.map((o) => ({
-            value: o,
-            label: field.optionLabels?.[o] ?? o,
-          }))}
-          disabled={previewMode}
-          sx={wrapperSx}
-          {...extraProps}
-        />
-      );
+      case 'select':
+      case 'multiselect':
+        return (
+          <DropdownField
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            options={field.options.map((o) => ({
+              value: o,
+              label: field.optionLabels?.[o] ?? o,
+            }))}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'checkboxGroup':
-      return (
-        <CheckboxGroup
-          name={field.name}
-          label={field.label}
-          required={field.required}
-          options={field.options.map((o) => ({
-            value: o,
-            label: field.optionLabels?.[o] ?? o,
-          }))}
-          sx={wrapperSx}
-          {...extraProps}
-        />
-      );
+      case 'radio':
+        return (
+          <RadioField
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            options={field.options.map((o) => ({
+              value: o,
+              label: field.optionLabels?.[o] ?? o,
+            }))}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'date':
-    case 'time':
-    case 'datetime':
-      return (
-        <DateTimeField
-          name={field.name}
-          label={field.label}
-          required={field.required}
-          viewMode={field.type}
-          size={field.layout.desktop.size}
-          disabled={previewMode}
-          sx={wrapperSx}
-          {...extraProps}
-        />
-      );
+      case 'checkboxGroup':
+        return (
+          <CheckboxGroup
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            options={field.options.map((o) => ({
+              value: o,
+              label: field.optionLabels?.[o] ?? o,
+            }))}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'file':
-      return (
-        <FileUpload name={field.name} label={field.label} required={field.required}
-          disabled={previewMode} sx={wrapperSx} {...extraProps} />
-      );
+      case 'date':
+      case 'time':
+      case 'datetime':
+        return (
+          <DateTimeField
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            viewMode={field.type}
+            size={field.layout.desktop.size}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'photo':
-      return (
-        <PhotoUpload name={field.name} label={field.label} required={field.required}
-          disabled={previewMode} sx={wrapperSx} {...extraProps} />
-      );
+      case 'file':
+        return (
+          <FileUpload
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    case 'checkbox':
-      return (
-        <SingleCheckbox name={field.name} label={field.label} disabled={previewMode} />
-      );
+      case 'photo':
+        return (
+          <PhotoUpload
+            name={field.name}
+            label={field.label}
+            required={field.required}
+            disabled={locked}
+            sx={wrapperSx}
+            {...extraProps}
+          />
+        );
 
-    default:
-      return null;
-  }
-});
+      case 'checkbox':
+        return (
+          <SingleCheckbox
+            name={field.name}
+            label={field.label}
+            disabled={locked}
+          />
+        );
+
+      default:
+        return null;
+    }
+  },
+);
 
 FieldRenderer.displayName = 'FieldRenderer';
+
